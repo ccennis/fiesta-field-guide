@@ -45,9 +45,13 @@ export function useApi() {
         return request(url, { method: 'PUT', body: JSON.stringify(body) });
     }, [request]);
 
+    const patch = useCallback((url, body) => {
+        return request(url, { method: 'PATCH', body: JSON.stringify(body) });
+    }, [request]);
+
     const destroy = useCallback((url) => {
         return request(url, { method: 'DELETE' });
     }, [request]);
 
-    return { data, error, loading, get, post, put, destroy };
+    return { data, error, loading, get, post, put, patch, destroy };
 }

@@ -4,8 +4,36 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.jsx';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Interface palette. These are chrome colors, not glaze colors: no value
+       here is a claim about what any Fiesta color actually looks like. */
+    --color-glaze-cream: #fdf8ed;
+    --color-glaze-shell: #f6ecd8;
+    --color-glaze-ink: #2c2318;
+    --color-glaze-slate: #6b5f51;
+    --color-glaze-flame: #d94f2b;
+    --color-glaze-sun: #edab26;
+    --color-glaze-lagoon: #1f8f9e;
+    --color-glaze-cobalt: #2f4a9c;
+    --color-glaze-fern: #4e8f3f;
+    --color-glaze-plum: #8a5296;
+}
+
+body {
+    background-color: var(--color-glaze-cream);
+    color: var(--color-glaze-ink);
+}
+
+/* Concentric rings, the one motif every piece of Fiesta shares. */
+.rings {
+    background-image: repeating-radial-gradient(
+        circle at 50% 50%,
+        transparent 0 5px,
+        color-mix(in srgb, currentColor 22%, transparent) 5px 6px
+    );
 }

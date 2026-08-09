@@ -1,0 +1,57 @@
+name,produced_from,produced_to,hex,group
+Red (Radioactive Orange),1936,1943,#E2583E,vintage
+Cobalt (Vintage),1936,1950,#1F2D5A,vintage
+Light Green,1936,1951,#7FA37C,vintage
+Yellow (Vintage),1936,1969,#E8B841,vintage
+Ivory (Vintage),1936,1951,#F1E3CB,vintage
+Turquoise (Vintage),1937,1969,#3CAEA3,vintage
+Rose (Vintage),1951,1959,#D29494,vintage
+Gray,1951,1959,#8A9597,vintage
+Forest Green,1951,1959,#1E4620,vintage
+Chartreuse (Vintage),1951,1959,#B5C141,vintage
+Medium Green,1959,1969,#3D854A,vintage
+Antique Gold,1969,1972,#CCA23B,vintage
+Turf Green,1969,1972,#475333,vintage
+Fiesta Amber,1969,1972,#AB673A,vintage
+Black,1986,2014,#1C1C1C,post86_retired
+Rose (Post-86),1986,2005,#EAA3A7,post86_retired
+Apricot,1986,1998,#F7B094,post86_retired
+Cobalt Blue (Post-86),1986,2021,#152A55,post86_retired
+Yellow (Post-86),1987,2002,#F6E58D,post86_retired
+Periwinkle Blue,1989,2006,#7D95C3,post86_retired
+Sea Mist Green,1991,2005,#A2CBB5,post86_retired
+Lilac,1993,1995,#B39EB5,post86_retired
+Persimmon,1995,2008,#E06D53,post86_retired
+Sapphire,1996,1997,#1A4B82,post86_retired
+Chartreuse (Post-86),1997,1999,#C3D74B,post86_retired
+Pearl Gray,1998,2001,#BAC1C6,post86_retired
+Juniper,1999,2001,#274E55,post86_retired
+Cinnabar,2000,2010,#6E2625,post86_retired
+Plum,2002,2015,#4A2840,post86_retired
+Shamrock,2002,2021,#2E7D32,post86_retired
+Tangerine,2003,2023,#F36F21,post86_retired
+Ivory (Post-86),2008,2023,#EDE6D0,post86_retired
+Chocolate,2008,2012,#4A3525,post86_retired
+Lemongrass,2009,2024,#D1E231,post86_retired
+Paprika,2010,2017,#8D2D24,post86_retired
+Marigold,2011,2012,#FBB034,post86_retired
+Flamingo,2012,2013,#FA7268,post86_retired
+Lapis,2013,2024,#1E517B,post86_retired
+Sage,2015,2018,#879786,post86_retired
+Slate,2015,2022,#525B63,post86_retired
+Claret,2016,2018,#6C1D2F,post86_retired
+Mulberry,2018,2024,#4B2B45,post86_retired
+Butterscotch,2020,2024,#D99B26,post86_retired
+White,1986,,#F9F9F9,post86_active
+Turquoise,1988,,#00A3A8,post86_active
+Sunflower,2001,,#FFCC00,post86_active
+Scarlet,2004,,#B71C1C,post86_active
+Poppy,2014,,#FF4E00,post86_active
+Daffodil,2017,,#FFEA00,post86_active
+Meadow,2019,,#4CAF50,post86_active
+Twilight,2021,,#1A237E,post86_active
+Peony,2022,,#E91E63,post86_active
+Jade,2023,,#00695C,post86_active
+Sky Blue,2024,,#4FC3F7,post86_active
+Icy Blue,2025,,#D1E8E2,post86_active
+Lavender,2026,,#E1BEE7,post86_active

@@ -1,7 +1,7 @@
 import './bootstrap';
 import { createRoot } from 'react-dom/client';
-import PostList from './components/PostList';
+import App from './components/App';
 
 const container = document.getElementById('app');
 const root = createRoot(container);
-root.render(<PostList />);
+root.render(<App />);
