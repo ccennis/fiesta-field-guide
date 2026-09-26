@@ -137,13 +137,27 @@ php artisan fiesta:rule-listings
 php artisan fiesta:suggest-swatches
 ```
 
-Rulings are usually made on the **Review** tab, which works on a phone. Each unruled name
-shows how many listings use it, a few example titles, and the store's own photos loaded
-from the store's links. A name can be mapped to one of the catalog's colors or products,
-added as a new one, ignored, or skipped for now. Product names can also be ticked and
-added as new products in one go, keeping the store's wording until they are renamed on
-the Products screen. Rulings already made can be undone. `fiesta:rule-listings` does the
-same from a terminal.
+Rulings are usually made on the **Review** tab, which works on a phone. A product name
+shows every color the store sold it in, with the catalog swatch once that color is mapped
+and retired colors muted. A color name shows how many products carry it. Both show a few
+of the store's own photos, loaded from the store's links. A name can be mapped to one of
+the catalog's colors or products, added as a new one, ignored, or skipped for now.
+Product names can also be ticked and added as new products in one go. Rulings already
+made can be undone. `fiesta:rule-listings` does the same from a terminal. Store color
+names are shown, and new colors saved, with each word capitalized.
+
+### Product names follow the store
+
+Mapping a store product name to a catalog product renames the product to the store's
+wording, so Identify, Collection and the wishlist all use it. When several store names
+map to one product, the one on the most listings wins. A name already used by another
+product is never taken; the review screen says so and suggests merging.
+`fiesta:adopt-store-names` applies the rule to products mapped before it existed.
+
+Every product also keeps its spreadsheet name as an alias, keyed by line. The importers
+look products up through these aliases, so re-running an import after a rename still
+finds the product instead of creating a duplicate. Merging products carries the aliases,
+store evidence and all, to the product that remains.
 
 What the store lists is a claim, not a catalog fact.
 

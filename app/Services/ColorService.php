@@ -18,7 +18,7 @@ class ColorService extends BaseService
     public function create(array $data): Color
     {
         return DB::transaction(function () use ($data) {
-            $color = Color::create($data);
+            $color = Color::create(['name' => self::titleCase($data['name'])] + $data);
             $this->buildVariants($color);
 
             return $color->fresh('line');
@@ -35,6 +35,16 @@ class ColorService extends BaseService
         $color->update($data);
 
         return $color->fresh('line');
+    }
+
+    /**
+     * Color names start each word with a capital ("Cobalt Blue", "Red (Orange
+     * Red)"). The store sometimes writes them in lower case. Letters already
+     * capitalized are left alone.
+     */
+    public static function titleCase(string $name): string
+    {
+        return ucwords(trim(preg_replace('/\s+/', ' ', $name)), " -(\t");
     }
 
     private function buildVariants(Color $color): void

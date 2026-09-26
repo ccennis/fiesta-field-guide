@@ -11,6 +11,7 @@ use App\Models\ExternalListing;
 use App\Models\Product;
 use App\Models\ProductAlias;
 use App\Services\BaseService;
+use App\Services\ColorService;
 use App\Services\Import\ImportReport;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ class ListingReviewService extends BaseService
     public function names(ListingSource $source, ListingNameKind $kind, bool $ruled): Collection
     {
         $aliases = $this->aliases($source, $kind);
+        $colors = $this->aliases($source, ListingNameKind::Color);
 
         return ExternalListing::where('source', $source)
             ->orderBy('is_set')
@@ -46,7 +48,7 @@ class ListingReviewService extends BaseService
             ->get()
             ->groupBy($kind->keyColumn())
             ->filter(fn (Collection $listings, $key) => $aliases->has((string) $key) === $ruled)
-            ->map(fn (Collection $listings, $key) => $this->describe($kind, (string) $key, $listings, $aliases->get((string) $key)))
+            ->map(fn (Collection $listings, $key) => $this->describe($kind, (string) $key, $listings, $aliases->get((string) $key), $colors))
             ->sortByDesc('listings')
             ->values();
     }
@@ -63,7 +65,13 @@ class ListingReviewService extends BaseService
             throw new RuntimeException('No listing uses that name.');
         }
 
-        return $this->describe($kind, $key, $listings, $this->aliases($source, $kind)->get($key));
+        return $this->describe(
+            $kind,
+            $key,
+            $listings,
+            $this->aliases($source, $kind)->get($key),
+            $this->aliases($source, ListingNameKind::Color),
+        );
     }
 
     public function rule(ListingSource $source, ListingNameKind $kind, string $key, AliasDecision $decision, ?int $targetId): object
@@ -85,11 +93,19 @@ class ListingReviewService extends BaseService
             throw new RuntimeException('Choose a '.mb_strtolower($kind->label()).' from the Fiesta line.');
         }
 
-        $kind === ListingNameKind::Color
-            ? $this->rulings->mapColor($source, $key, $target)
-            : $this->rulings->mapProduct($source, $key, $target);
+        if ($kind === ListingNameKind::Color) {
+            $this->rulings->mapColor($source, $key, $target);
 
-        return $this->result($source, $kind, $key, $this->resolver->resolveName($source, $kind, $key));
+            return $this->result($source, $kind, $key, $this->resolver->resolveName($source, $kind, $key));
+        }
+
+        $this->rulings->mapProduct($source, $key, $target);
+        $rename = $this->rulings->adoptStoreName($source, $target);
+
+        $name = $this->result($source, $kind, $key, $this->resolver->resolveName($source, $kind, $key));
+        $name->rename = $rename;
+
+        return $name;
     }
 
     /**
@@ -171,21 +187,56 @@ class ListingReviewService extends BaseService
 
     /**
      * @param  Collection<int, ExternalListing>  $listings
+     * @param  Collection<string, ColorAlias>  $colorAliases
      */
-    private function describe(ListingNameKind $kind, string $key, Collection $listings, ColorAlias|ProductAlias|null $alias): object
-    {
+    private function describe(
+        ListingNameKind $kind,
+        string $key,
+        Collection $listings,
+        ColorAlias|ProductAlias|null $alias,
+        Collection $colorAliases,
+    ): object {
         $nameColumn = $kind->value.'_name';
+        // The store spells some names several ways ("White", "white"); show the most common.
+        $name = $listings->pluck($nameColumn)->countBy()->sortDesc()->keys()->first();
+
+        // One photo per color on a product card, or per product on a color card,
+        // so the thumbnails show the range rather than near duplicates.
+        $spreadColumn = $kind === ListingNameKind::Product ? 'color_key' : 'product_key';
 
         return (object) [
             'kind' => $kind,
             'key' => $key,
-            // The store spells some names several ways ("White", "white"); show the most common.
-            'name' => $listings->pluck($nameColumn)->countBy()->sortDesc()->keys()->first(),
+            'name' => $kind === ListingNameKind::Color ? ColorService::titleCase($name) : $name,
             'listings' => $listings->count(),
             'retired' => $listings->where('is_retired', true)->count(),
             'resolved' => $listings->whereNotNull('variant_id')->count(),
-            'examples' => $listings->sortBy(fn ($listing) => $listing->image_url === null)->take(self::EXAMPLES)->values(),
+            'examples' => $listings->whereNotNull('image_url')->unique($spreadColumn)->take(self::EXAMPLES)->values(),
+            'colors' => $kind === ListingNameKind::Product ? $this->colorsOf($listings, $colorAliases) : null,
+            'products' => $kind === ListingNameKind::Color ? $listings->pluck('product_key')->unique()->count() : null,
             'ruling' => $alias,
         ];
+    }
+
+    /**
+     * The colors a store product came in, each with the catalog swatch once
+     * that store color is mapped. A color counts as retired only when every
+     * listing of it is.
+     *
+     * @param  Collection<int, ExternalListing>  $listings
+     * @param  Collection<string, ColorAlias>  $colorAliases
+     * @return Collection<int, array{name: string, hex: ?string, retired: bool}>
+     */
+    private function colorsOf(Collection $listings, Collection $colorAliases): Collection
+    {
+        return $listings
+            ->groupBy('color_key')
+            ->map(fn (Collection $group, $colorKey) => [
+                'name' => ColorService::titleCase($group->pluck('color_name')->countBy()->sortDesc()->keys()->first()),
+                'hex' => $colorAliases->get((string) $colorKey)?->color?->hex,
+                'retired' => $group->every(fn ($listing) => $listing->is_retired),
+            ])
+            ->sortBy('name')
+            ->values();
     }
 }

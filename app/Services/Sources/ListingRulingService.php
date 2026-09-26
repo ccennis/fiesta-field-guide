@@ -21,8 +21,8 @@ use Illuminate\Support\Collection;
  * Records the owner's rulings on the names a source uses. A ruling is made
  * once per name, and every listing using that name follows it.
  *
- * Creating a color or product from here only ever uses what the owner typed.
- * Nothing about a color's years or a product's name is taken from the source.
+ * Products take the store's wording once a store name is mapped to them, as
+ * the owner chose. A color's years are only ever what the owner typed.
  */
 class ListingRulingService extends BaseService
 {
@@ -81,6 +81,54 @@ class ListingRulingService extends BaseService
             ['source' => $source, 'external_key' => $key],
             ['decision' => AliasDecision::Mapped, 'product_id' => $product->id],
         );
+    }
+
+    /**
+     * Rename a product to the store's wording. When several store names map to
+     * one product, the one on the most listings wins, in its most common
+     * spelling. A name already used by another product is never taken; the
+     * two are more likely the same piece and should be merged.
+     *
+     * @return array{from: ?string, to: ?string, conflict: ?string}
+     */
+    public function adoptStoreName(ListingSource $source, Product $product): array
+    {
+        $result = ['from' => null, 'to' => null, 'conflict' => null];
+
+        $keys = ProductAlias::where('source', $source)
+            ->where('decision', AliasDecision::Mapped)
+            ->where('product_id', $product->id)
+            ->pluck('external_key');
+
+        $listings = ExternalListing::where('source', $source)->whereIn('product_key', $keys)->get(['product_key', 'product_name']);
+
+        if ($listings->isEmpty()) {
+            return $result;
+        }
+
+        $busiest = $listings->countBy('product_key')->sortDesc()->keys()->first();
+        $name = $listings->where('product_key', $busiest)->pluck('product_name')->countBy()->sortDesc()->keys()->first();
+
+        if ($name === $product->name) {
+            return $result;
+        }
+
+        $taken = Product::where('line_id', $product->line_id)
+            ->where('name', $name)
+            ->whereKeyNot($product->id)
+            ->exists();
+
+        if ($taken) {
+            $result['conflict'] = "Another product is already called \"{$name}\". Merge the two on the Products screen if they are the same piece.";
+
+            return $result;
+        }
+
+        $result['from'] = $product->name;
+        $this->productService->update($product, ['name' => $name]);
+        $result['to'] = $name;
+
+        return $result;
     }
 
     public function ignoreProduct(ListingSource $source, string $key): ProductAlias
@@ -164,7 +212,7 @@ class ListingRulingService extends BaseService
             ->get()
             ->map(fn ($row) => (object) [
                 'name_key' => $row->name_key,
-                'name' => $row->name,
+                'name' => $kind === 'color' ? ColorService::titleCase($row->name) : $row->name,
                 'listings' => (int) $row->listings,
                 'example' => $row->example,
             ]);
