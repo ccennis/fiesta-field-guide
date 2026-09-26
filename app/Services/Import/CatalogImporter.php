@@ -2,12 +2,15 @@
 
 namespace App\Services\Import;
 
+use App\Enums\AliasDecision;
 use App\Enums\DecorationCategory;
+use App\Enums\ListingSource;
 use App\Enums\VariantExistence;
 use App\Models\Color;
 use App\Models\Decoration;
 use App\Models\Line;
 use App\Models\Product;
+use App\Models\ProductAlias;
 use App\Models\Variant;
 use App\Services\BaseService;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +114,7 @@ class CatalogImporter extends BaseService
 
             $line = $lines[$row['line']];
             $color = $this->findColor($line->id, $entry['color'], $entry['color_produced_from']);
-            $product = Product::where('line_id', $line->id)->whereRaw('lower(name) = ?', [$productParsed['key']])->first();
+            $product = $this->findProduct($line, $productParsed['key']);
 
             if ($color === null || $product === null) {
                 $report->add(
@@ -407,11 +410,32 @@ class CatalogImporter extends BaseService
             }
 
             $seen[$key] = $parsed['raw'];
-            Product::firstOrCreate(['line_id' => $line->id, 'name' => $parsed['display']]);
+            $product = $this->findProduct($line, $parsed['key'])
+                ?? Product::create(['line_id' => $line->id, 'name' => $parsed['display']]);
+
+            ProductAlias::firstOrCreate(
+                ['source' => ListingSource::CollectionExport, 'external_key' => ListingSource::exportKey($line->name, $parsed['key'])],
+                ['decision' => AliasDecision::Mapped, 'product_id' => $product->id],
+            );
         }
 
         $this->reportUnmappedMatrixColumns($report);
         $this->reportShapeCollapseCandidates($report);
+    }
+
+    /**
+     * A product by its spreadsheet name. The recorded alias wins, since the
+     * product may have been renamed since, for instance to the store's wording.
+     */
+    private function findProduct(Line $line, string $key): ?Product
+    {
+        $alias = ProductAlias::with('product')
+            ->where('source', ListingSource::CollectionExport)
+            ->where('external_key', ListingSource::exportKey($line->name, $key))
+            ->first();
+
+        return $alias?->product
+            ?? Product::where('line_id', $line->id)->whereRaw('lower(name) = ?', [$key])->first();
     }
 
     private function reportUnmappedMatrixColumns(ImportReport $report): void

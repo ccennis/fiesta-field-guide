@@ -24,6 +24,9 @@ class ListingNameResource extends JsonResource
             'resolved' => $this->resolved,
             'confirmed_now' => $this->confirmed_now ?? null,
             'examples' => ExternalListingResource::collection($this->examples),
+            'colors' => $this->colors,
+            'products' => $this->products,
+            'rename' => $this->rename ?? null,
             'ruling' => $this->ruling === null ? null : [
                 'decision' => ['value' => $this->ruling->decision->value, 'label' => $this->ruling->decision->label()],
                 'target' => $this->target(),

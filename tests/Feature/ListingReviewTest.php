@@ -84,6 +84,64 @@ class ListingReviewTest extends TestCase
             ->assertJsonPath('data.evidence.0.url', 'https://fiestafactorydirect.com/products/p-1');
     }
 
+    public function test_mapping_a_store_name_gives_the_product_the_stores_wording(): void
+    {
+        $this->rule('product', 'fruit/salsa bowl', $this->bowl->id)
+            ->assertOk()
+            ->assertJsonPath('data.rename.from', 'Fruit Bowl')
+            ->assertJsonPath('data.rename.to', 'Fruit/Salsa Bowl');
+
+        $this->assertSame('Fruit/Salsa Bowl', $this->bowl->fresh()->name);
+    }
+
+    public function test_the_store_name_on_the_most_listings_wins(): void
+    {
+        $this->listing(7, 'Fruit Bowl Small', 'Linen', null);
+
+        $this->rule('product', 'fruit bowl small', $this->bowl->id);
+        $this->assertSame('Fruit Bowl Small', $this->bowl->fresh()->name);
+
+        // "Fruit/Salsa Bowl" is on two listings, so it takes over once mapped too.
+        $this->rule('product', 'fruit/salsa bowl', $this->bowl->id);
+        $this->assertSame('Fruit/Salsa Bowl', $this->bowl->fresh()->name);
+    }
+
+    public function test_a_store_name_already_used_by_another_product_is_not_taken(): void
+    {
+        Product::create(['line_id' => $this->fiesta->id, 'name' => 'Fruit/Salsa Bowl']);
+
+        $this->rule('product', 'fruit/salsa bowl', $this->bowl->id)
+            ->assertOk()
+            ->assertJsonPath('data.rename.to', null);
+
+        $this->assertSame('Fruit Bowl', $this->bowl->fresh()->name);
+        $this->assertStringContainsString('Merge', $this->rule('product', 'fruit/salsa bowl', $this->bowl->id)->json('data.rename.conflict'));
+    }
+
+    public function test_product_cards_list_their_colors_and_color_names_are_capitalized(): void
+    {
+        $this->listing(8, 'Fruit/Salsa Bowl', 'mulberry', null);
+        app(ListingRulingService::class)->mapColor(self::SOURCE, 'turquoise', $this->turquoise);
+
+        $product = collect($this->getJson(self::BASE.'/names?kind=product')->json('data'))->firstWhere('key', 'fruit/salsa bowl');
+
+        $this->assertSame(['Linen', 'Mulberry', 'Turquoise'], array_column($product['colors'], 'name'));
+        $this->assertSame('#00a3a8', collect($product['colors'])->firstWhere('name', 'Turquoise')['hex']);
+
+        $colors = array_column($this->getJson(self::BASE.'/names?kind=color')->json('data'), 'name');
+        $this->assertContains('Mulberry', $colors);
+    }
+
+    public function test_a_new_color_is_saved_capitalized(): void
+    {
+        $this->listing(9, 'Fruit/Salsa Bowl', 'cobalt blue', null);
+
+        $this->postJson(self::BASE.'/rulings/create', ['kind' => 'color', 'key' => 'cobalt blue', 'name' => 'cobalt blue'])
+            ->assertCreated();
+
+        $this->assertTrue(Color::where('name', 'Cobalt Blue')->exists());
+    }
+
     public function test_a_ruling_must_point_into_the_stores_line(): void
     {
         $harlequin = Line::create(['name' => 'Harlequin', 'slug' => 'harlequin']);

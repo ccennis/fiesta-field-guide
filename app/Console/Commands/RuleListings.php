@@ -112,7 +112,7 @@ class RuleListings extends Command
             ]);
 
             match ($choice) {
-                self::MAP => $rulings->mapProduct($source, $pending->name_key, Product::findOrFail(search(
+                self::MAP => $this->mapProduct($rulings, $source, $pending->name_key, Product::findOrFail(search(
                     label: 'Which product?',
                     options: fn (string $value) => $rulings->productChoices($value),
                 ))),
@@ -131,6 +131,23 @@ class RuleListings extends Command
         }
 
         return false;
+    }
+
+    /**
+     * Mapping a store name onto a product gives the product the store's wording.
+     */
+    private function mapProduct(ListingRulingService $rulings, ListingSource $source, string $key, Product $product): void
+    {
+        $rulings->mapProduct($source, $key, $product);
+        $rename = $rulings->adoptStoreName($source, $product);
+
+        if ($rename['to'] !== null) {
+            info("Renamed \"{$rename['from']}\" to \"{$rename['to']}\".");
+        }
+
+        if ($rename['conflict'] !== null) {
+            $this->warn($rename['conflict']);
+        }
     }
 
     private function describe(string $kind, object $pending): void

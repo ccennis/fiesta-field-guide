@@ -2,15 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ListingSource;
 use App\Enums\ValueSource;
 use App\Enums\VariantExistence;
 use App\Enums\WishlistSource;
 use App\Models\Color;
 use App\Models\Holding;
 use App\Models\Line;
+use App\Models\Product;
+use App\Models\ProductAlias;
 use App\Models\ValueObservation;
 use App\Models\Variant;
 use App\Models\WishlistItem;
+use App\Services\ProductService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -146,6 +150,36 @@ class SeedDataImportTest extends TestCase
         $this->artisan('fiesta:import-wishlist')->assertSuccessful();
 
         $this->assertSame($expected, WishlistItem::count());
+    }
+
+    public function test_importers_still_find_a_product_after_it_is_renamed(): void
+    {
+        $fiesta = Line::where('name', 'Fiesta')->first();
+        $plate = Product::where('line_id', $fiesta->id)->where('name', '10" Plate')->sole();
+        $plate->update(['name' => 'Classic Rim 10 1/2 Inch Dinner Plate']);
+
+        $expected = WishlistItem::whereHas('variant', fn ($query) => $query->where('product_id', $plate->id))->count();
+        WishlistItem::query()->delete();
+
+        $this->artisan('fiesta:import-wishlist')->assertSuccessful();
+        $this->artisan('fiesta:import-catalog')->assertSuccessful();
+
+        $this->assertSame($expected, WishlistItem::whereHas('variant', fn ($query) => $query->where('product_id', $plate->id))->count());
+        $this->assertFalse(Product::where('line_id', $fiesta->id)->where('name', '10" Plate')->exists());
+    }
+
+    public function test_merging_products_keeps_their_spreadsheet_names(): void
+    {
+        $fiesta = Line::where('name', 'Fiesta')->first();
+        $nappy = Product::where('line_id', $fiesta->id)->where('name', 'Nappy Bowl')->sole();
+        $target = Product::where('line_id', $fiesta->id)->where('name', 'Nappy 8.5"')->sole();
+
+        app(ProductService::class)->merge($nappy, $target);
+
+        $this->assertSame(
+            $target->id,
+            ProductAlias::where('source', ListingSource::CollectionExport)->where('external_key', 'fiesta|nappy bowl')->value('product_id')
+        );
     }
 
     public function test_the_wishlist_import_skips_a_piece_owned_since(): void

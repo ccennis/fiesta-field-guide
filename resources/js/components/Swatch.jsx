@@ -6,7 +6,7 @@
  * deliberately an obvious placeholder rather than an invented color.
  */
 export default function Swatch({ hex, size = 'md' }) {
-    const dimension = { sm: 'h-7 w-7', md: 'h-9 w-9', lg: 'h-16 w-16' }[size];
+    const dimension = { xs: 'h-5 w-5', sm: 'h-7 w-7', md: 'h-9 w-9', lg: 'h-16 w-16' }[size];
 
     if (!hex) {
         return (

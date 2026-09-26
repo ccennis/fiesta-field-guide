@@ -2,6 +2,7 @@
 
 namespace App\Services\Import;
 
+use App\Enums\ListingSource;
 use App\Enums\ValueSource;
 use App\Enums\VariantExistence;
 use App\Enums\WishlistPriority;
@@ -11,6 +12,7 @@ use App\Models\Decoration;
 use App\Models\Holding;
 use App\Models\Line;
 use App\Models\Product;
+use App\Models\ProductAlias;
 use App\Models\ValueObservation;
 use App\Models\Variant;
 use App\Models\WishlistItem;
@@ -176,6 +178,18 @@ class HoldingImporter extends BaseService
 
         foreach (Product::all() as $product) {
             $this->products[$product->line_id.'|'.mb_strtolower($product->name)] = $product;
+        }
+
+        // Spreadsheet names recorded as aliases win over current names, so a
+        // product renamed since the export is still found by its old name.
+        $lineIds = Line::all()->mapWithKeys(fn (Line $line) => [mb_strtolower($line->name) => $line->id]);
+
+        foreach (ProductAlias::with('product')->where('source', ListingSource::CollectionExport)->get() as $alias) {
+            [$lineName, $key] = explode('|', $alias->external_key, 2);
+
+            if ($alias->product !== null && $lineIds->has($lineName)) {
+                $this->products[$lineIds[$lineName].'|'.$key] = $alias->product;
+            }
         }
 
         foreach (Variant::all() as $variant) {

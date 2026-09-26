@@ -39,6 +39,31 @@ function Thumbs({ examples }) {
     );
 }
 
+/**
+ * The colors a store product came in. A swatch shows once that store color is
+ * mapped to one of the catalog's; retired colors are muted.
+ */
+function ColorChips({ colors }) {
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {colors.map((c) => (
+                <span
+                    key={c.name}
+                    title={c.retired ? `${c.name}, retired` : c.name}
+                    className={`inline-flex items-center gap-1.5 rounded-full border-2 border-glaze-shell py-0.5 pl-0.5 pr-2.5 text-xs font-bold ${
+                        c.retired ? 'text-glaze-slate/60' : 'text-glaze-ink'
+                    }`}
+                >
+                    <span className={`flex ${c.retired ? 'opacity-50' : ''}`}>
+                        <Swatch hex={c.hex} size="xs" />
+                    </span>
+                    {c.name}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 function Picker({ kind, options, onPick }) {
     const [query, setQuery] = useState('');
     const matches = options
@@ -138,8 +163,10 @@ function NameCard({ item, kind, options, onChanged, onSkip, selected, onSelect }
                 <div className="min-w-0 flex-1">
                     <p className="font-black leading-tight">&ldquo;{item.name}&rdquo;</p>
                     <p className="text-xs text-glaze-slate">
-                        {item.listings} {item.listings === 1 ? 'listing' : 'listings'}
-                        {item.retired > 0 && ` · ${item.retired} retired`}
+                        {kind === 'product'
+                            ? `${item.colors.length} ${item.colors.length === 1 ? 'color' : 'colors'}`
+                            : `on ${item.products} ${item.products === 1 ? 'product' : 'products'}`}
+                        {item.retired > 0 && ` · ${item.retired} retired ${item.retired === 1 ? 'listing' : 'listings'}`}
                         {ruled && ` · ${item.resolved} evidencing a variant`}
                     </p>
                 </div>
@@ -165,15 +192,7 @@ function NameCard({ item, kind, options, onChanged, onSkip, selected, onSelect }
             ) : (
                 <>
                     <Thumbs examples={item.examples} />
-                    <ul className="space-y-0.5 text-xs text-glaze-slate">
-                        {item.examples.map((e) => (
-                            <li key={e.id} className="truncate">
-                                <a href={e.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                    {e.title}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
+                    {kind === 'product' && <ColorChips colors={item.colors} />}
 
                     {mode === 'map' && (
                         <Picker kind={kind} options={options} onPick={(o) => send('rulings', { decision: 'mapped', target_id: o.id })} />
@@ -318,11 +337,13 @@ export default function Review() {
     const onChanged = (before, after) => {
         setItems((current) => current.filter((i) => i.key !== before.key));
         const target = after.ruling?.target;
+        const renamed = after.rename?.to ? ` Renamed "${after.rename.from}" to "${after.rename.to}".` : '';
+        const conflict = after.rename?.conflict ? ` ${after.rename.conflict}` : '';
         setNotice(
             after.ruling === null
                 ? `"${after.name}" is back in the queue.`
                 : target
-                  ? `"${after.name}" → ${target.name}. ${after.confirmed_now} ${after.confirmed_now === 1 ? 'variant' : 'variants'} newly confirmed.`
+                  ? `"${after.name}" → ${target.name}. ${after.confirmed_now} ${after.confirmed_now === 1 ? 'variant' : 'variants'} newly confirmed.${renamed}${conflict}`
                   : `"${after.name}" ignored.`
         );
         loadCounts();

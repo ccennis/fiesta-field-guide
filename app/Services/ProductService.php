@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Enums\VariantExistence;
 use App\Models\Color;
+use App\Models\ExternalListing;
 use App\Models\Holding;
 use App\Models\Product;
+use App\Models\ProductAlias;
 use App\Models\ValueObservation;
 use App\Models\Variant;
+use App\Models\VariantEvidence;
 use App\Models\WishlistItem;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -63,7 +66,7 @@ class ProductService extends BaseService
         }
 
         return DB::transaction(function () use ($source, $target) {
-            $moved = ['holdings' => 0, 'variants_repointed' => 0, 'variants_folded' => 0, 'observations' => 0, 'wishlist_items' => 0];
+            $moved = ['holdings' => 0, 'variants_repointed' => 0, 'variants_folded' => 0, 'observations' => 0, 'wishlist_items' => 0, 'aliases' => 0];
 
             foreach ($source->variants()->with('holdings')->get() as $variant) {
                 $existing = Variant::where('product_id', $target->id)
@@ -86,6 +89,8 @@ class ProductService extends BaseService
                 }
 
                 WishlistItem::where('variant_id', $variant->id)->update(['variant_id' => $existing->id]);
+                VariantEvidence::where('variant_id', $variant->id)->update(['variant_id' => $existing->id]);
+                ExternalListing::where('variant_id', $variant->id)->update(['variant_id' => $existing->id]);
 
                 $variant->delete();
                 $moved['variants_folded']++;
@@ -95,6 +100,11 @@ class ProductService extends BaseService
                 ->update(['product_id' => $target->id]);
 
             $moved['wishlist_items'] = WishlistItem::where('product_id', $source->id)
+                ->update(['product_id' => $target->id]);
+
+            // Store and spreadsheet names for the merged product now mean the
+            // surviving one, so its listings and imports still resolve.
+            $moved['aliases'] = ProductAlias::where('product_id', $source->id)
                 ->update(['product_id' => $target->id]);
 
             $source->delete();
