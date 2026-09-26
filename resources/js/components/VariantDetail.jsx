@@ -186,6 +186,31 @@ export default function VariantDetail({ variantId }) {
                         verified. It may never have been made.
                     </p>
                 )}
+
+                {variant.evidence?.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">Known from</p>
+                        {variant.evidence.map((listing) => (
+                            <a
+                                key={listing.id}
+                                href={listing.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block rounded-xl border-2 border-glaze-shell px-3 py-2 text-sm hover:border-glaze-lagoon"
+                            >
+                                <span className="font-bold">{listing.source.label}</span>
+                                {listing.is_retired && (
+                                    <span className="ml-2 rounded-full bg-glaze-shell px-2 py-0.5 text-xs font-bold text-glaze-slate">
+                                        retired
+                                    </span>
+                                )}
+                                <span className="block truncate text-xs text-glaze-slate">
+                                    {listing.title} · last seen {listing.last_seen_at}
+                                </span>
+                            </a>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <Card title="Rarity">

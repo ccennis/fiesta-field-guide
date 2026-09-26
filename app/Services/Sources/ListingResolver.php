@@ -3,6 +3,7 @@
 namespace App\Services\Sources;
 
 use App\Enums\AliasDecision;
+use App\Enums\ListingNameKind;
 use App\Enums\ListingSource;
 use App\Enums\VariantExistence;
 use App\Models\ColorAlias;
@@ -30,11 +31,39 @@ class ListingResolver extends BaseService
 
     public function resolve(ListingSource $source, ImportReport $report): void
     {
+        $newlyConfirmed = $this->apply($source, ExternalListing::where('source', $source)->get(), $report);
+
+        $this->reportTotals($source, $newlyConfirmed, $report);
+        $this->reportPending($source, $report);
+    }
+
+    /**
+     * Re-resolve only the listings that use one name, so a single ruling made
+     * on the review screen does not re-check the whole source.
+     */
+    public function resolveName(ListingSource $source, ListingNameKind $kind, string $key): ImportReport
+    {
+        $report = new ImportReport;
+        $listings = ExternalListing::where('source', $source)->where($kind->keyColumn(), $key)->get();
+
+        $report->set('listings using this name', $listings->count());
+        $report->set('variants newly confirmed', $this->apply($source, $listings, $report));
+        $report->set('listings resolved to a variant', $listings->filter(fn ($listing) => $listing->variant_id !== null)->count());
+
+        return $report;
+    }
+
+    /**
+     * @param  Collection<int, ExternalListing>  $listings
+     * @return int variants newly confirmed
+     */
+    private function apply(ListingSource $source, Collection $listings, ImportReport $report): int
+    {
         $products = ProductAlias::with('product')->where('source', $source)->get()->keyBy('external_key');
         $colors = ColorAlias::with('color')->where('source', $source)->get()->keyBy('external_key');
         $newlyConfirmed = 0;
 
-        foreach (ExternalListing::where('source', $source)->get() as $listing) {
+        foreach ($listings as $listing) {
             $target = $this->target($listing, $products, $colors, $report);
 
             if ($listing->variant_id !== $target?->id) {
@@ -54,8 +83,7 @@ class ListingResolver extends BaseService
             }
         }
 
-        $this->reportTotals($source, $newlyConfirmed, $report);
-        $this->reportPending($source, $report);
+        return $newlyConfirmed;
     }
 
     /**

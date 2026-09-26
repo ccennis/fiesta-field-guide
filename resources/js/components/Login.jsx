@@ -22,7 +22,7 @@ export default function Login({ onSignedIn }) {
         <div className="flex min-h-screen items-center justify-center px-4 pt-[env(safe-area-inset-top)]">
             <form onSubmit={submit} className="w-full max-w-sm space-y-4">
                 <div className="flex items-center gap-3">
-                    <span className="rings h-12 w-12 shrink-0 rounded-full bg-glaze-sun text-glaze-ink" aria-hidden="true" />
+                    <img src="/icons/logo.png" alt="" className="h-14 w-14 shrink-0" />
                     <h1 className="text-2xl font-black tracking-tight">
                         Fiesta<span className="text-glaze-flame"> Field Guide</span>
                     </h1>

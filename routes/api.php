@@ -4,7 +4,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ColorController;
 use App\Http\Controllers\HoldingController;
+use App\Http\Controllers\ListingReviewController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SwatchSuggestionController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
@@ -38,4 +40,14 @@ Route::middleware('auth')->group(function () {
     Route::post('wishlist', [WishlistController::class, 'store']);
     Route::patch('wishlist/{wishlistItem}', [WishlistController::class, 'update']);
     Route::delete('wishlist/{wishlistItem}', [WishlistController::class, 'destroy']);
+
+    Route::get('sources/{source}/names', [ListingReviewController::class, 'index']);
+    Route::post('sources/{source}/rulings', [ListingReviewController::class, 'rule']);
+    Route::post('sources/{source}/rulings/create', [ListingReviewController::class, 'create']);
+    Route::post('sources/{source}/rulings/create-products', [ListingReviewController::class, 'createProducts']);
+    Route::post('sources/{source}/rulings/undo', [ListingReviewController::class, 'undo']);
+
+    Route::get('swatch-suggestions', [SwatchSuggestionController::class, 'index']);
+    Route::post('swatch-suggestions/{swatchSuggestion}/accept', [SwatchSuggestionController::class, 'accept']);
+    Route::post('swatch-suggestions/{swatchSuggestion}/dismiss', [SwatchSuggestionController::class, 'dismiss']);
 });

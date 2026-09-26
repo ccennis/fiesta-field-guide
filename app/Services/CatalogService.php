@@ -154,7 +154,7 @@ class CatalogService extends BaseService
      */
     public function identify(Variant $variant): Variant
     {
-        $variant->load(['product.line', 'color', 'decoration', 'holdings']);
+        $variant->load(['product.line', 'color', 'decoration', 'holdings', 'evidence.listing']);
         $variant->loadCount('holdings');
         $this->valuationService->attach(collect([$variant]));
         $variant->setRelation('valueHistory', $this->valuationService->history($variant));
