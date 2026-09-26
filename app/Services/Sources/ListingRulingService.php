@@ -3,6 +3,7 @@
 namespace App\Services\Sources;
 
 use App\Enums\AliasDecision;
+use App\Enums\ListingNameKind;
 use App\Enums\ListingSource;
 use App\Models\Color;
 use App\Models\ColorAlias;
@@ -101,6 +102,24 @@ class ListingRulingService extends BaseService
     }
 
     /**
+     * Remove a ruling, so the name goes back to awaiting one.
+     */
+    public function undo(ListingSource $source, ListingNameKind $kind, string $key): void
+    {
+        $model = $kind === ListingNameKind::Color ? ColorAlias::class : ProductAlias::class;
+
+        $model::where('source', $source)->where('external_key', $key)->delete();
+    }
+
+    /**
+     * The line the store sells. Every ruling from this source points into it.
+     */
+    public function fiesta(): Line
+    {
+        return Line::where('name', SeedDataReader::LINE_FIESTA)->firstOrFail();
+    }
+
+    /**
      * Colors in the line the store sells, labeled with their years so reused
      * names can be told apart.
      *
@@ -149,10 +168,5 @@ class ListingRulingService extends BaseService
                 'listings' => (int) $row->listings,
                 'example' => $row->example,
             ]);
-    }
-
-    private function fiesta(): Line
-    {
-        return Line::where('name', SeedDataReader::LINE_FIESTA)->firstOrFail();
     }
 }

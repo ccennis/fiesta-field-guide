@@ -80,7 +80,8 @@ class FiestaFactoryDirectParser extends BaseService
 
                 foreach ($product['variants'] as $variant) {
                     $color = trim((string) $variant['option'.$optionPosition]);
-                    $listings[] = $this->listing($product, $variant, $title, $name, $color, $retired, $isSet);
+                    $image = $variant['featured_image']['src'] ?? null;
+                    $listings[] = $this->listing($product, $variant, $title, $name, $color, $retired, $isSet, $image);
                 }
 
                 continue;
@@ -94,7 +95,8 @@ class FiestaFactoryDirectParser extends BaseService
                 continue;
             }
 
-            $listings[] = $this->listing($product, $product['variants'][0], $title, $rest, $color, $retired, $isSet);
+            $image = $product['variants'][0]['featured_image']['src'] ?? $product['images'][0]['src'] ?? null;
+            $listings[] = $this->listing($product, $product['variants'][0], $title, $rest, $color, $retired, $isSet, $image);
         }
 
         return ['listings' => $listings, 'skipped' => $skipped];
@@ -117,14 +119,16 @@ class FiestaFactoryDirectParser extends BaseService
     }
 
     /**
+     * The image must show this color. On a product with a Color option, the
+     * product's main photo shows only one of its colors, so only a photo tied
+     * to the variant itself is kept.
+     *
      * @param  array<string, mixed>  $product
      * @param  array<string, mixed>  $variant
      * @return array<string, mixed>
      */
-    private function listing(array $product, array $variant, string $title, string $name, string $color, bool $retired, bool $isSet): array
+    private function listing(array $product, array $variant, string $title, string $name, string $color, bool $retired, bool $isSet, ?string $image): array
     {
-        $image = $variant['featured_image']['src'] ?? $product['images'][0]['src'] ?? null;
-
         return [
             'external_product_id' => (string) $product['id'],
             'external_variant_id' => (string) $variant['id'],

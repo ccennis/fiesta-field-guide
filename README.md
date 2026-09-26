@@ -134,7 +134,16 @@ fetching again.
 php artisan fiesta:import-ffd
 php artisan fiesta:import-ffd --snapshot=2026-09-26-initial
 php artisan fiesta:rule-listings
+php artisan fiesta:suggest-swatches
 ```
+
+Rulings are usually made on the **Review** tab, which works on a phone. Each unruled name
+shows how many listings use it, a few example titles, and the store's own photos loaded
+from the store's links. A name can be mapped to one of the catalog's colors or products,
+added as a new one, ignored, or skipped for now. Product names can also be ticked and
+added as new products in one go, keeping the store's wording until they are renamed on
+the Products screen. Rulings already made can be undone. `fiesta:rule-listings` does the
+same from a terminal.
 
 What the store lists is a claim, not a catalog fact.
 
@@ -154,7 +163,23 @@ A listing that disappears from the store is kept and reported, since a piece tha
 listed was still made. The report is written to
 `storage/app/private/reports/ffd-import-report.txt`.
 
+The identify answer lists the evidence behind a known example, with a link to each
+listing, whether it is retired, and when it was last seen.
+
 The store's product images are kept only as links to the store. None are copied.
+
+### Suggested swatches
+
+`fiesta:suggest-swatches` estimates a swatch for each ruled color that has none. It reads
+up to five store photos of the glaze, ignores the white background and deep shadows, and
+takes the median color. Photos are read in memory and never stored. Suggestions wait on
+the Review tab and only change a color when accepted. One already accepted or dismissed
+is not suggested again.
+
+Correcting the photos against existing swatches was tried and dropped. Measured on 11
+ruled colors, every correction did worse than the plain median, because several existing
+swatches are generic palette colors rather than measurements. Each suggestion notes how
+far the photos sat from those swatches.
 
 ## API
 
@@ -228,5 +253,8 @@ holdings that point at them.
   inside a title only when the catalog or a ruling already knows its name. Colors the store
   offers as a product option are always picked up. The report lists skipped titles, so a
   new title-only color shows up there first.
-- **Rulings are made in the terminal.** The review screen that will replace
-  `fiesta:rule-listings` is not built yet.
+- **Suggested swatches only reach colors the store sells.** Vintage, Harlequin and
+  Riviera colors never appear there, so their missing swatches still need measuring from
+  real pieces.
+- **Accepted swatches live in the database only.** A catalog re-import rebuilds colors from
+  `database/seed-data/color-hex.csv`, so an accepted swatch worth keeping belongs there too.

@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('fiesta:import-ffd')->weeklyOn(1, '6:00')->withoutOverlapping();
+Schedule::command('fiesta:suggest-swatches')->weeklyOn(1, '6:30')->withoutOverlapping();

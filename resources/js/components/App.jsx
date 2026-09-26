@@ -4,6 +4,7 @@ import Identify from './Identify';
 import Collection from './Collection';
 import Products from './Products';
 import Wishlist from './Wishlist';
+import Review from './Review';
 import Login from './Login';
 import InstallHint from './InstallHint';
 
@@ -11,6 +12,7 @@ const TABS = [
     { key: 'identify', label: 'Identify a piece', short: 'Identify', mobile: true },
     { key: 'collection', label: 'Collection', short: 'Collection', mobile: true },
     { key: 'wishlist', label: 'Wishlist', short: 'Wishlist', mobile: true },
+    { key: 'review', label: 'Review', short: 'Review', mobile: true },
     { key: 'products', label: 'Products', short: 'Products', mobile: false },
 ];
 
@@ -67,8 +69,15 @@ export default function App() {
                 <div className="relative mx-auto max-w-[1600px] px-4 py-4 md:px-6 md:py-6">
                     <div className="flex flex-wrap items-end justify-between gap-4 md:gap-6">
                         <div>
-                            <h1 className="text-2xl font-black tracking-tight md:text-3xl">
-                                Fiesta<span className="text-glaze-sun"> Field Guide</span>
+                            <h1 className="flex items-center gap-3 text-2xl font-black tracking-tight md:text-3xl">
+                                <img
+                                    src="/icons/logo.png"
+                                    alt=""
+                                    className="h-10 w-10 rounded-xl bg-glaze-cream p-0.5 md:h-12 md:w-12"
+                                />
+                                <span>
+                                    Fiesta<span className="text-glaze-sun"> Field Guide</span>
+                                </span>
                             </h1>
                             <p className="mt-1 hidden text-sm text-glaze-cream/70 md:block">
                                 Homer Laughlin, 1936 to now. Fiesta, Riviera and Harlequin.
@@ -128,6 +137,7 @@ export default function App() {
                 {tab === 'identify' && <Identify />}
                 {tab === 'collection' && <Collection />}
                 {tab === 'wishlist' && <Wishlist />}
+                {tab === 'review' && <Review />}
                 {tab === 'products' && <Products />}
             </main>
 

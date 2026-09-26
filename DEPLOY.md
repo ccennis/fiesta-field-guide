@@ -141,8 +141,8 @@ losing the server. DigitalOcean droplet backups, or a copy to Spaces, would cove
 
 ## 6. Store import
 
-`fiesta:import-ffd` reads the Fiesta Factory Direct catalog every Monday at 6:00 through
-Laravel's scheduler. The scheduler only runs if Forge calls it, so the site's
+`fiesta:import-ffd` reads the Fiesta Factory Direct catalog every Monday at 6:00, and
+`fiesta:suggest-swatches` samples store photos at 6:30, through Laravel's scheduler. The scheduler only runs if Forge calls it, so the site's
 **Scheduler** needs to be enabled in Forge, running `php artisan schedule:run` every
 minute as the `fiesta` user.
 
