@@ -23,6 +23,7 @@ class CatalogService extends BaseService
 {
     public function __construct(
         private ValuationService $valuationService,
+        private WishlistService $wishlistService,
     ) {}
 
     /** @return Collection<int, Line> */
@@ -128,6 +129,10 @@ class CatalogService extends BaseService
             ->when($filters['owned'] !== null, fn (Builder $query) => $filters['owned']
                 ? $query->has('holdings')
                 : $query->doesntHave('holdings'))
+            ->when(
+                $filters['wishlisted'] !== null,
+                fn (Builder $query) => $this->wishlistService->constrainVariants($query, $filters['wishlisted'])
+            )
             ->join('products', 'products.id', '=', 'variants.product_id')
             ->join('colors', 'colors.id', '=', 'variants.color_id')
             ->orderBy('products.name')
@@ -144,7 +149,8 @@ class CatalogService extends BaseService
 
     /**
      * The in-shop answer for one variant: what it is, what is known about its
-     * rarity, what it is worth, and whether one is already owned.
+     * rarity, what it is worth, whether one is already owned, and whether it is
+     * on the wishlist.
      */
     public function identify(Variant $variant): Variant
     {
@@ -152,6 +158,7 @@ class CatalogService extends BaseService
         $variant->loadCount('holdings');
         $this->valuationService->attach(collect([$variant]));
         $variant->setRelation('valueHistory', $this->valuationService->history($variant));
+        $variant->setRelation('wishlistMatch', $this->wishlistService->matchFor($variant));
 
         return $variant;
     }
@@ -188,7 +195,7 @@ class CatalogService extends BaseService
             'variants_confirmed' => Variant::where('existence', VariantExistence::Confirmed)->count(),
             'estimated_value' => round($total, 2),
             'pieces_without_a_value' => $unvalued,
-        ];
+        ] + $this->wishlistService->counts();
     }
 
     /**
@@ -217,6 +224,7 @@ class CatalogService extends BaseService
             'existence' => isset($input['existence']) ? VariantExistence::from($input['existence']) : null,
             'owned' => $toBool('owned'),
             'decorated' => $toBool('decorated'),
+            'wishlisted' => $toBool('wishlisted'),
         ];
     }
 

@@ -4,11 +4,13 @@ namespace Tests\Feature;
 
 use App\Enums\ValueSource;
 use App\Enums\VariantExistence;
+use App\Enums\WishlistSource;
 use App\Models\Color;
 use App\Models\Holding;
 use App\Models\Line;
 use App\Models\ValueObservation;
 use App\Models\Variant;
+use App\Models\WishlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -103,6 +105,58 @@ class SeedDataImportTest extends TestCase
             ->count();
 
         $this->assertSame(0, $ownedButUnconfirmed);
+    }
+
+    public function test_it_turns_qty_zero_rows_into_wishlist_items_without_confirming_them(): void
+    {
+        $items = WishlistItem::with('variant.color')->get();
+
+        $this->assertGreaterThan(30, $items->count());
+        $this->assertTrue($items->every(fn ($item) => $item->source === WishlistSource::Import));
+        $this->assertTrue($items->every(fn ($item) => $item->variant_id !== null));
+
+        // Listing a piece is not evidence it was made.
+        $this->assertTrue($items->every(fn ($item) => $item->variant->existence === VariantExistence::Unconfirmed));
+        $this->assertSame(0, $items->filter(fn ($item) => $item->variant->holdings()->exists())->count());
+
+        // The sheet lists all three Turf Green basics at qty 0.
+        $this->assertSame(3, $items->filter(fn ($item) => $item->variant->color->name === 'Turf Green')->count());
+    }
+
+    public function test_the_wishlist_import_leaves_holdings_alone_and_can_run_twice(): void
+    {
+        // A database imported before the wishlist existed: qty 0 variants were
+        // confirmed, there are no wishlist items, and a piece was added in the app.
+        $listedIds = WishlistItem::pluck('variant_id');
+        $expected = $listedIds->count();
+
+        WishlistItem::query()->delete();
+        Variant::whereIn('id', $listedIds)->update(['existence' => VariantExistence::Confirmed]);
+
+        $unlisted = Variant::whereNotIn('id', $listedIds)->doesntHave('holdings')->first();
+        Holding::create(['variant_id' => $unlisted->id]);
+        $holdings = Holding::count();
+
+        $this->artisan('fiesta:import-wishlist')->assertSuccessful();
+
+        $this->assertSame($holdings, Holding::count());
+        $this->assertSame($expected, WishlistItem::count());
+        $this->assertSame(0, Variant::whereIn('id', $listedIds)->where('existence', VariantExistence::Confirmed)->count());
+
+        $this->artisan('fiesta:import-wishlist')->assertSuccessful();
+
+        $this->assertSame($expected, WishlistItem::count());
+    }
+
+    public function test_the_wishlist_import_skips_a_piece_owned_since(): void
+    {
+        $item = WishlistItem::first();
+        WishlistItem::query()->delete();
+        Holding::create(['variant_id' => $item->variant_id]);
+
+        $this->artisan('fiesta:import-wishlist')->assertSuccessful();
+
+        $this->assertFalse(WishlistItem::where('variant_id', $item->variant_id)->exists());
     }
 
     public function test_it_reads_a_decal_as_a_decoration_rather_than_a_color(): void

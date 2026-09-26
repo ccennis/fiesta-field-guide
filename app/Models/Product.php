@@ -26,6 +26,11 @@ class Product extends Model
         return $this->hasMany(ValueObservation::class);
     }
 
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
+
     protected function casts(): array
     {
         return [

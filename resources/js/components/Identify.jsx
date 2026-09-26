@@ -37,9 +37,35 @@ export default function Identify() {
         `${s.name} ${s.line.name}`.toLowerCase().includes(filter.toLowerCase())
     );
 
+    // On a phone one step shows at a time; on a wide screen all three sit side by side.
+    const step = variantId ? 'answer' : product ? 'color' : 'product';
+    const shown = (name) => (step === name ? '' : 'hidden lg:block');
+
+    useEffect(() => {
+        if (window.matchMedia('(max-width: 1023px)').matches) window.scrollTo(0, 0);
+    }, [step]);
+
+    const back = () => {
+        if (variantId) {
+            setVariantId(null);
+            return;
+        }
+        setShape(null);
+    };
+
     return (
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr_1.1fr]">
-            <section>
+            {step !== 'product' && (
+                <button
+                    onClick={back}
+                    className="flex items-center gap-2 justify-self-start rounded-full bg-glaze-shell px-4 py-2 text-sm font-bold text-glaze-slate lg:hidden"
+                >
+                    <span aria-hidden="true">&larr;</span>
+                    {step === 'answer' ? `Colors for ${product.name}` : 'All products'}
+                </button>
+            )}
+
+            <section className={shown('product')}>
                 <h2 className="mb-2 flex items-center gap-2 text-sm font-black uppercase tracking-wide">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-glaze-flame text-xs text-white">
                         1
@@ -50,14 +76,14 @@ export default function Identify() {
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     placeholder="Narrow the list"
-                    className="mb-2 w-full rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm focus:border-glaze-lagoon focus:outline-none"
+                    className="mb-2 w-full rounded-lg border-2 border-glaze-shell bg-white px-3 py-3 text-base focus:border-glaze-lagoon focus:outline-none lg:py-2 lg:text-sm"
                 />
-                <div className="max-h-[30rem] overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white">
+                <div className="overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white lg:max-h-[30rem]">
                     {visible.map((s) => (
                         <button
                             key={s.id}
                             onClick={() => setShape(s)}
-                            className={`block w-full border-b border-glaze-shell/70 px-4 py-2.5 text-left text-sm last:border-0 ${
+                            className={`block w-full border-b border-glaze-shell/70 px-4 py-3.5 text-left text-base last:border-0 lg:py-2.5 lg:text-sm ${
                                 product?.id === s.id
                                     ? 'bg-glaze-ink font-bold text-glaze-cream'
                                     : 'hover:bg-glaze-sun/15'
@@ -76,22 +102,23 @@ export default function Identify() {
                 </div>
             </section>
 
-            <section>
+            <section className={shown('color')}>
                 <h2 className="mb-2 flex items-center gap-2 text-sm font-black uppercase tracking-wide">
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-glaze-lagoon text-xs text-white">
                         2
                     </span>
                     What color is it?
+                    {product && <span className="font-bold normal-case text-glaze-slate lg:hidden">{product.name}</span>}
                 </h2>
 
                 {product ? (
                     <>
-                        <div className="max-h-[30rem] overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white">
+                        <div className="overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white lg:max-h-[30rem]">
                             {(colors ?? []).map((c) => (
                                 <button
                                     key={c.id}
                                     onClick={() => selectColor(c)}
-                                    className="flex w-full items-center gap-3 border-b border-glaze-shell/70 px-4 py-2.5 text-left text-sm last:border-0 hover:bg-glaze-sun/15"
+                                    className="flex w-full items-center gap-3 border-b border-glaze-shell/70 px-4 py-3.5 text-left text-base last:border-0 hover:bg-glaze-sun/15 lg:py-2.5 lg:text-sm"
                                 >
                                     <Swatch hex={c.hex} size="sm" />
                                     <span className="font-bold">{c.name}</span>
@@ -114,7 +141,7 @@ export default function Identify() {
                 )}
             </section>
 
-            <section>
+            <section className={shown('answer')}>
                 {variantId ? (
                     <VariantDetail variantId={variantId} />
                 ) : (

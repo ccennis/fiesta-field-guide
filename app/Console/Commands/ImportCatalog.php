@@ -17,6 +17,7 @@ class ImportCatalog extends Command
     public function handle(CatalogImporter $importer): int
     {
         if ($this->option('fresh')) {
+            DB::table('wishlist_items')->delete();
             DB::table('holdings')->delete();
             DB::table('value_observations')->delete();
             DB::table('variants')->delete();

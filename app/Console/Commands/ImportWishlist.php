@@ -8,11 +8,15 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-class ImportHoldings extends Command
+/**
+ * Brings the wishlist into a database without re-importing holdings, so pieces
+ * and conditions recorded in the app are kept.
+ */
+class ImportWishlist extends Command
 {
-    protected $signature = 'fiesta:import-holdings {--fresh : Delete existing holdings, observations and wishlist items first}';
+    protected $signature = 'fiesta:import-wishlist';
 
-    protected $description = 'Import owned pieces, value observations and wishlist items from the seed data';
+    protected $description = 'Import wishlist items from the seed data\'s qty 0 rows, leaving holdings alone';
 
     public function handle(HoldingImporter $importer): int
     {
@@ -22,17 +26,11 @@ class ImportHoldings extends Command
             return self::FAILURE;
         }
 
-        if ($this->option('fresh')) {
-            DB::table('wishlist_items')->delete();
-            DB::table('holdings')->delete();
-            DB::table('value_observations')->delete();
-        }
-
         $report = new ImportReport;
 
-        DB::transaction(fn () => $importer->import($report));
+        DB::transaction(fn () => $importer->importWishlist($report));
 
-        $this->renderReport($report, 'Holdings import', 'holdings-import-report.txt');
+        $this->renderReport($report, 'Wishlist import', 'wishlist-import-report.txt');
 
         return self::SUCCESS;
     }

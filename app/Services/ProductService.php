@@ -8,6 +8,7 @@ use App\Models\Holding;
 use App\Models\Product;
 use App\Models\ValueObservation;
 use App\Models\Variant;
+use App\Models\WishlistItem;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -46,8 +47,8 @@ class ProductService extends BaseService
      * Where both products already cover the same color and decoration, the
      * source's holdings move onto the surviving variant and the now empty
      * variant is dropped. Where only the source covers it, the variant is
-     * repointed. Value observations move across; nothing is deleted that has a
-     * piece or a figure attached to it.
+     * repointed. Value observations and wishlist items move across; nothing is
+     * deleted that has a piece, a figure or a wish attached to it.
      *
      * @return array<string, int> what moved, for the caller to report
      */
@@ -62,7 +63,7 @@ class ProductService extends BaseService
         }
 
         return DB::transaction(function () use ($source, $target) {
-            $moved = ['holdings' => 0, 'variants_repointed' => 0, 'variants_folded' => 0, 'observations' => 0];
+            $moved = ['holdings' => 0, 'variants_repointed' => 0, 'variants_folded' => 0, 'observations' => 0, 'wishlist_items' => 0];
 
             foreach ($source->variants()->with('holdings')->get() as $variant) {
                 $existing = Variant::where('product_id', $target->id)
@@ -84,11 +85,16 @@ class ProductService extends BaseService
                     $existing->update(['existence' => VariantExistence::Confirmed]);
                 }
 
+                WishlistItem::where('variant_id', $variant->id)->update(['variant_id' => $existing->id]);
+
                 $variant->delete();
                 $moved['variants_folded']++;
             }
 
             $moved['observations'] = ValueObservation::where('product_id', $source->id)
+                ->update(['product_id' => $target->id]);
+
+            $moved['wishlist_items'] = WishlistItem::where('product_id', $source->id)
                 ->update(['product_id' => $target->id]);
 
             $source->delete();
@@ -98,8 +104,9 @@ class ProductService extends BaseService
     }
 
     /**
-     * Deleting a product takes its variants with it, so it is only allowed
-     * when nothing is owned. Merging is the route for a duplicate.
+     * Deleting a product takes its variants and wishlist items with it, so it
+     * is only allowed when nothing is owned or wished for. Merging is the route
+     * for a duplicate.
      */
     public function delete(Product $product): void
     {
@@ -107,6 +114,12 @@ class ProductService extends BaseService
 
         if ($owned > 0) {
             throw new RuntimeException("{$product->name} has {$owned} pieces. Merge it into another product instead.");
+        }
+
+        $wished = $product->wishlistItems()->count();
+
+        if ($wished > 0) {
+            throw new RuntimeException("{$product->name} is on your wishlist {$wished} times. Remove those or merge it instead.");
         }
 
         $product->delete();

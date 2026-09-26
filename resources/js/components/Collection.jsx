@@ -5,10 +5,17 @@ import VariantDetail from './VariantDetail';
 import RowActions from './RowActions';
 
 const OWNERSHIP = [
-    { key: 'all', label: 'Everything' },
-    { key: 'owned', label: 'I own' },
-    { key: 'missing', label: "I'm missing" },
+    { key: 'all', label: 'Everything', short: 'All' },
+    { key: 'owned', label: 'I own', short: 'Own' },
+    { key: 'missing', label: "I'm missing", short: 'Missing' },
+    { key: 'wishlist', label: 'On my wishlist', short: 'Wishlist' },
 ];
+
+function ownershipParams(params, ownership) {
+    if (ownership === 'owned') params.set('owned', '1');
+    if (ownership === 'missing') params.set('owned', '0');
+    if (ownership === 'wishlist') params.set('wishlisted', '1');
+}
 
 const SELECT = 'rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm font-medium focus:border-glaze-lagoon focus:outline-none';
 
@@ -41,6 +48,7 @@ export default function Collection() {
     const [decoration, setDecoration] = useState('');
     const [selected, setSelected] = useState(null);
     const [acting, setActing] = useState(null);
+    const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
         getLines('/api/lines');
@@ -57,7 +65,7 @@ export default function Collection() {
 
     useEffect(() => {
         const params = new URLSearchParams({ per_page: '200' });
-        if (ownership !== 'all') params.set('owned', ownership === 'owned' ? '1' : '0');
+        ownershipParams(params, ownership);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);
@@ -73,7 +81,7 @@ export default function Collection() {
 
     const refresh = () => {
         const params = new URLSearchParams({ per_page: '200' });
-        if (ownership !== 'all') params.set('owned', ownership === 'owned' ? '1' : '0');
+        ownershipParams(params, ownership);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);
@@ -87,6 +95,7 @@ export default function Collection() {
 
     const items = result?.items ?? [];
     const total = result?.meta?.total ?? 0;
+    const activeFilters = [lineId, era, year, productId, colorId, decoration].filter(Boolean).length;
 
     const reset = () => {
         setLineId('');
@@ -101,100 +110,113 @@ export default function Collection() {
         <div className="space-y-4">
             <div className="rounded-2xl border-2 border-glaze-shell bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-end gap-4">
-                    <div className="flex gap-1 rounded-full bg-glaze-shell p-1">
+                    <div className="flex w-full gap-1 rounded-full bg-glaze-shell p-1 md:w-auto">
                         {OWNERSHIP.map((o) => (
                             <button
                                 key={o.key}
                                 onClick={() => setOwnership(o.key)}
-                                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                                className={`flex-1 whitespace-nowrap rounded-full px-2 py-2 text-sm font-bold transition md:flex-none md:px-4 ${
                                     ownership === o.key
                                         ? 'bg-glaze-ink text-glaze-cream'
                                         : 'text-glaze-slate hover:text-glaze-ink'
                                 }`}
                             >
-                                {o.label}
+                                <span className="md:hidden">{o.short}</span>
+                                <span className="hidden md:inline">{o.label}</span>
                             </button>
                         ))}
                     </div>
 
-                    <Field label="Line">
-                        <select value={lineId} onChange={(e) => setLineId(e.target.value)} className={SELECT}>
-                            <option value="">All lines</option>
-                            {(lines ?? []).map((l) => (
-                                <option key={l.id} value={l.id}>
-                                    {l.name}
-                                </option>
-                            ))}
-                        </select>
-                    </Field>
-
-                    <Field label="Era">
-                        <select value={era} onChange={(e) => setEra(e.target.value)} className={SELECT}>
-                            <option value="">All eras</option>
-                            <option value="vintage">Vintage (1936-1973)</option>
-                            <option value="post_86">Post-86 (1986-)</option>
-                        </select>
-                    </Field>
-
-                    <Field label="In production in">
-                        <input
-                            type="number"
-                            value={year}
-                            onChange={(e) => setYear(e.target.value)}
-                            placeholder="e.g. 1955"
-                            min="1930"
-                            max="2100"
-                            className={`${SELECT} w-32`}
-                        />
-                    </Field>
-
-                    <Field label="Product">
-                        <select value={productId} onChange={(e) => setProductId(e.target.value)} className={SELECT}>
-                            <option value="">All products</option>
-                            {(products ?? []).map((s) => (
-                                <option key={s.id} value={s.id}>
-                                    {s.name}
-                                </option>
-                            ))}
-                        </select>
-                    </Field>
-
-                    <Field label="Color">
-                        <select value={colorId} onChange={(e) => setColorId(e.target.value)} className={SELECT}>
-                            <option value="">All colors</option>
-                            {(colors ?? []).map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}
-                                    {c.produced_label ? ` (${c.produced_label})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </Field>
-
-                    <Field label="Decoration">
-                        <select
-                            value={decoration}
-                            onChange={(e) => setDecoration(e.target.value)}
-                            className={SELECT}
-                        >
-                            <option value="">Any</option>
-                            <option value="plain">Plain glaze only</option>
-                            <option value="any">Decorated only</option>
-                            {(decorations ?? []).map((d) => (
-                                <option key={d.id} value={`id:${d.id}`}>
-                                    {d.name}
-                                    {d.category ? ` (${d.category.label})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </Field>
-
                     <button
-                        onClick={reset}
-                        className="rounded-lg px-3 py-2 text-sm font-bold text-glaze-slate underline-offset-2 hover:underline"
+                        onClick={() => setShowFilters((v) => !v)}
+                        className="rounded-full bg-glaze-shell px-4 py-2 text-sm font-bold text-glaze-ink md:hidden"
                     >
-                        Clear
+                        {showFilters ? 'Hide filters' : 'Filters'}
+                        {activeFilters > 0 && ` (${activeFilters})`}
                     </button>
+
+                    <div
+                        className={`${showFilters ? 'grid' : 'hidden'} w-full grid-cols-2 gap-3 md:contents max-md:[&_input]:w-full max-md:[&_select]:w-full`}
+                    >
+                        <Field label="Line">
+                            <select value={lineId} onChange={(e) => setLineId(e.target.value)} className={SELECT}>
+                                <option value="">All lines</option>
+                                {(lines ?? []).map((l) => (
+                                    <option key={l.id} value={l.id}>
+                                        {l.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+
+                        <Field label="Era">
+                            <select value={era} onChange={(e) => setEra(e.target.value)} className={SELECT}>
+                                <option value="">All eras</option>
+                                <option value="vintage">Vintage (1936-1973)</option>
+                                <option value="post_86">Post-86 (1986-)</option>
+                            </select>
+                        </Field>
+
+                        <Field label="In production in">
+                            <input
+                                type="number"
+                                value={year}
+                                onChange={(e) => setYear(e.target.value)}
+                                placeholder="e.g. 1955"
+                                min="1930"
+                                max="2100"
+                                className={`${SELECT} w-32`}
+                            />
+                        </Field>
+
+                        <Field label="Product">
+                            <select value={productId} onChange={(e) => setProductId(e.target.value)} className={SELECT}>
+                                <option value="">All products</option>
+                                {(products ?? []).map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                        {s.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+
+                        <Field label="Color">
+                            <select value={colorId} onChange={(e) => setColorId(e.target.value)} className={SELECT}>
+                                <option value="">All colors</option>
+                                {(colors ?? []).map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                        {c.produced_label ? ` (${c.produced_label})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+
+                        <Field label="Decoration">
+                            <select
+                                value={decoration}
+                                onChange={(e) => setDecoration(e.target.value)}
+                                className={SELECT}
+                            >
+                                <option value="">Any</option>
+                                <option value="plain">Plain glaze only</option>
+                                <option value="any">Decorated only</option>
+                                {(decorations ?? []).map((d) => (
+                                    <option key={d.id} value={`id:${d.id}`}>
+                                        {d.name}
+                                        {d.category ? ` (${d.category.label})` : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </Field>
+
+                        <button
+                            onClick={reset}
+                            className="rounded-lg px-3 py-2 text-left text-sm font-bold text-glaze-slate underline-offset-2 hover:underline"
+                        >
+                            Clear
+                        </button>
+                    </div>
 
                     <p className="ml-auto text-sm font-bold text-glaze-slate">
                         {loading ? 'Loading...' : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`}
@@ -205,7 +227,58 @@ export default function Collection() {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border-2 border-glaze-shell bg-white shadow-sm">
+            <ul className="space-y-2 md:hidden">
+                {items.map((v) => (
+                    <li key={v.id}>
+                        <div
+                            onClick={() => setSelected(v.id)}
+                            className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-glaze-shell bg-white px-4 py-3"
+                        >
+                            <Swatch hex={v.color.hex} size="md" />
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold">
+                                    {v.color.name} {v.product.name}
+                                </p>
+                                <p className="truncate text-xs text-glaze-slate">
+                                    {v.product.line.name}
+                                    {v.color.produced_label && ` · ${v.color.produced_label}`}
+                                    {v.decoration && ` · ${v.decoration.name}`}
+                                    {!v.existence.confirmed && ' · no known example'}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm tabular-nums">
+                                    {v.value ? (
+                                        <span className={v.value.source.is_blanket ? 'text-glaze-slate' : 'font-bold'}>
+                                            ${v.value.amount.toFixed(2)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-glaze-slate/50">—</span>
+                                    )}
+                                </p>
+                                {v.owned_count > 0 && (
+                                    <p className="text-xs font-bold text-glaze-fern">own {v.owned_count}</p>
+                                )}
+                            </div>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActing(v);
+                                }}
+                                aria-label={`Actions for ${v.color.name} ${v.product.name}`}
+                                className="-mr-2 rounded-lg px-2 py-2 text-lg leading-none font-bold text-glaze-slate"
+                            >
+                                &#8943;
+                            </button>
+                        </div>
+                    </li>
+                ))}
+                {!loading && items.length === 0 && (
+                    <li className="px-4 py-8 text-center text-sm text-glaze-slate">Nothing matches those filters.</li>
+                )}
+            </ul>
+
+            <div className="hidden overflow-hidden rounded-2xl border-2 border-glaze-shell bg-white shadow-sm md:block">
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="bg-glaze-ink text-left text-[11px] uppercase tracking-wide text-glaze-cream">
@@ -310,7 +383,7 @@ export default function Collection() {
             {selected && (
                 <div className="fixed inset-0 z-20 flex justify-end bg-glaze-ink/40" onClick={() => setSelected(null)}>
                     <div
-                        className="h-full w-full max-w-lg overflow-y-auto bg-glaze-cream p-6 shadow-2xl"
+                        className="h-full w-full max-w-lg overflow-y-auto bg-glaze-cream p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button
