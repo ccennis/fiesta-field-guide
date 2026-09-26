@@ -1,5 +1,16 @@
 import { useState, useCallback } from 'react';
 
+export const UNAUTHENTICATED = 'fiesta:unauthenticated';
+
+/**
+ * Laravel sets this cookie on every web response. Sending it back as a header
+ * is what satisfies CSRF protection on the session-backed API.
+ */
+function xsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
 export function useApi() {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
@@ -14,9 +25,14 @@ export function useApi() {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
+                    'X-XSRF-TOKEN': xsrfToken(),
                 },
                 ...options,
             });
+
+            if (response.status === 401) {
+                window.dispatchEvent(new Event(UNAUTHENTICATED));
+            }
 
             if (response.status === 204) {
                 return true;

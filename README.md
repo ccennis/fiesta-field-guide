@@ -13,6 +13,17 @@ composer setup
 composer dev
 ```
 
+Create the login, which prompts for a password in the terminal:
+
+```bash
+php artisan fiesta:make-user you@example.com
+```
+
+Run it again with the same email to reset the password. There is no sign-up page. The API
+is loaded under the `web` middleware group, so it uses the session, cookies and CSRF
+protection of a normal Laravel page. Every endpoint except `POST /api/login` requires a
+signed-in user, and login is limited to 5 attempts a minute.
+
 Then open the URL printed by `php artisan serve`. `composer setup` migrates and imports
 the collection; there are no other steps.
 

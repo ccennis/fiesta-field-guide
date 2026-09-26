@@ -67,7 +67,66 @@ export default function Wishlist() {
                 </p>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border-2 border-glaze-shell bg-white shadow-sm">
+            <ul className="space-y-2 md:hidden">
+                {rows.map((item) => {
+                    const isGrail = item.priority.value === 'grail';
+
+                    return (
+                        <li
+                            key={item.id}
+                            onClick={() => item.variant && setSelected(item.variant.id)}
+                            className={`flex items-center gap-3 rounded-2xl border-2 bg-white px-4 py-3 ${
+                                isGrail ? 'border-glaze-sun' : 'border-glaze-shell'
+                            } ${item.variant ? 'cursor-pointer' : ''}`}
+                        >
+                            {item.any_color ? <AnyColorMark /> : <Swatch hex={item.variant.color.hex} size="md" />}
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold">
+                                    {item.any_color ? 'Any color' : item.variant.color.name} {item.product.name}
+                                </p>
+                                <p className="truncate text-xs text-glaze-slate">
+                                    {item.product.line.name}
+                                    {item.variant?.decoration && ` · ${item.variant.decoration.name}`}
+                                    {item.value && ` · worth $${item.value.amount.toFixed(2)}`}
+                                    {status === 'found' && item.fulfilled_at && ` · found ${item.fulfilled_at}`}
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        update(item, { priority: isGrail ? 'want' : 'grail' });
+                                    }}
+                                    className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                                        isGrail ? 'bg-glaze-sun text-glaze-ink' : 'bg-glaze-shell text-glaze-slate'
+                                    }`}
+                                >
+                                    {item.priority.label}
+                                </button>
+                                {item.max_price !== null && (
+                                    <span className="text-xs font-bold tabular-nums">up to ${item.max_price.toFixed(2)}</span>
+                                )}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        status === 'found' ? update(item, { fulfilled: false }) : remove(item);
+                                    }}
+                                    className="py-1 text-xs font-bold text-glaze-slate"
+                                >
+                                    {status === 'found' ? 'Reopen' : 'Remove'}
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
+                {!loading && rows.length === 0 && (
+                    <li className="px-4 py-8 text-center text-sm text-glaze-slate">
+                        {status === 'found' ? 'Nothing found yet.' : 'Your wishlist is empty.'}
+                    </li>
+                )}
+            </ul>
+
+            <div className="hidden overflow-hidden rounded-2xl border-2 border-glaze-shell bg-white shadow-sm md:block">
                 <table className="w-full border-collapse text-sm">
                     <thead>
                         <tr className="bg-glaze-ink text-left text-[11px] uppercase tracking-wide text-glaze-cream">
@@ -180,7 +239,7 @@ export default function Wishlist() {
                     }}
                 >
                     <div
-                        className="h-full w-full max-w-lg overflow-y-auto bg-glaze-cream p-6 shadow-2xl"
+                        className="h-full w-full max-w-lg overflow-y-auto bg-glaze-cream p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <button

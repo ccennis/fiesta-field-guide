@@ -8,6 +8,7 @@ use App\Models\Color;
 use App\Models\Decoration;
 use App\Models\Line;
 use App\Models\Product;
+use App\Models\User;
 use App\Models\Variant;
 use App\Models\WishlistItem;
 use App\Services\WishlistService;
@@ -29,6 +30,8 @@ class WishlistTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->actingAs(User::factory()->create());
 
         $line = Line::create(['name' => 'Fiesta', 'slug' => 'fiesta']);
         $lilac = Color::create(['line_id' => $line->id, 'name' => 'Lilac', 'produced_from' => 1993, 'produced_to' => 1995]);

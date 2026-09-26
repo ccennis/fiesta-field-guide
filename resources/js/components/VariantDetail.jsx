@@ -24,7 +24,7 @@ function RarityFact({ label, value }) {
     );
 }
 
-const PRIORITY_BUTTON = 'rounded-full px-3 py-1 text-xs font-bold transition';
+const PRIORITY_BUTTON = 'rounded-full px-4 py-2 text-sm font-bold transition md:px-3 md:py-1 md:text-xs';
 
 /**
  * An item can name this exact piece, or the product in any plain color. When
