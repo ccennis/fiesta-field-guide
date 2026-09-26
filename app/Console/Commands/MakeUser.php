@@ -28,8 +28,8 @@ class MakeUser extends Command
 
         $password = $this->secret('Password');
 
-        if ($password === null || mb_strlen($password) < 12) {
-            $this->error('Use at least 12 characters.');
+        if ($password === null || mb_strlen($password) < 8) {
+            $this->error('Use at least 8 characters.');
 
             return self::FAILURE;
         }
