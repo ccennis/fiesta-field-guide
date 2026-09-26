@@ -122,6 +122,40 @@ may describe one object, and every assumption the importer had to make.
 The seed data in `database/seed-data/` is a real, uncleaned collection export. It is not
 cleaned at source and should not be.
 
+## Outside sources
+
+The Fiesta Factory Direct store is read weekly for which products it sells in which colors.
+Its `robots.txt` allows crawling the public catalog. The importer names itself in its user
+agent, pauses between pages, and saves every raw page under
+`storage/app/private/sources/fiesta-factory-direct/` so parsing can be replayed without
+fetching again.
+
+```bash
+php artisan fiesta:import-ffd
+php artisan fiesta:import-ffd --snapshot=2026-09-26-initial
+php artisan fiesta:rule-listings
+```
+
+What the store lists is a claim, not a catalog fact.
+
+- **Listings** hold one row per product and color the store shows, with the raw names, a
+  retired flag, a link, and when it was first and last seen. Glassware, linens and other
+  non-dinnerware are skipped, as are mixed-color sets. A single-color set still counts.
+- **Rulings** decide what a store name means. `fiesta:rule-listings` walks through
+  unruled color names and then product names, most listings first, and saves each answer
+  as it is given. A name maps to a catalog color or product, or is ignored. Reused color
+  names such as Cobalt are ruled one at a time, because the store name alone does not say
+  which era is meant. A new color takes only the name and years typed in.
+- **Evidence** is recorded once both names on a listing are mapped. It confirms the
+  variant and cites the listing. If a ruling changes, the evidence is withdrawn, and a
+  variant left with no evidence and no owned piece goes back to unconfirmed.
+
+A listing that disappears from the store is kept and reported, since a piece that was
+listed was still made. The report is written to
+`storage/app/private/reports/ffd-import-report.txt`.
+
+The store's product images are kept only as links to the store. None are copied.
+
 ## API
 
 All responses use `{ success, message, data, errors }`.
@@ -188,3 +222,11 @@ holdings that point at them.
 - **Two product pairs are still unresolved.** `Nappy 8.5"` and `Nappy Bowl` may be one
   object. `Canniser, Small` and `Cannister, Large` are two sizes carrying two different
   misspellings. The merge and rename tools exist; the rulings have not been made.
+- **Store listings for decorated lines are skipped.** Band and decal lines such as
+  Americana Band and Botanical Floral are left out until decorations can be ruled on too.
+- **A color the store only names in titles is invisible until it exists.** A color is found
+  inside a title only when the catalog or a ruling already knows its name. Colors the store
+  offers as a product option are always picked up. The report lists skipped titles, so a
+  new title-only color shows up there first.
+- **Rulings are made in the terminal.** The review screen that will replace
+  `fiesta:rule-listings` is not built yet.

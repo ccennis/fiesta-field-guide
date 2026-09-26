@@ -87,3 +87,6 @@ return response()->json(['id' => $product->id, 'name' => $product->name]);
 - When source data is ambiguous or two sources disagree, surface the conflict for a
   decision. Never silently pick a resolution.
 - If catalog data is needed and has not been provided, stop and ask.
+- Outside sources such as store listings are claims, not reference data. They are stored
+  as listings with a citation and only reach the catalog through a ruling the owner made.
+  Never map a source's names to catalog products or colors automatically.
