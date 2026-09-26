@@ -138,3 +138,16 @@ plain file copy.
 
 These copies live on the same server, so they protect against mistakes but not against
 losing the server. DigitalOcean droplet backups, or a copy to Spaces, would cover that.
+
+## 6. Store import
+
+`fiesta:import-ffd` reads the Fiesta Factory Direct catalog every Monday at 6:00 through
+Laravel's scheduler. The scheduler only runs if Forge calls it, so the site's
+**Scheduler** needs to be enabled in Forge, running `php artisan schedule:run` every
+minute as the `fiesta` user.
+
+Rulings on the store's names are made interactively on the server:
+
+```bash
+ssh -t fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan fiesta:rule-listings"
+```
