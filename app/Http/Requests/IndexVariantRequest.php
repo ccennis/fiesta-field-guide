@@ -34,6 +34,7 @@ class IndexVariantRequest extends FormRequest
             'existence' => ['sometimes', Rule::enum(VariantExistence::class)],
             'owned' => 'sometimes|boolean',
             'decorated' => 'sometimes|boolean',
+            'wishlisted' => 'sometimes|boolean',
             'per_page' => 'sometimes|integer|min:1|max:200',
         ];
     }

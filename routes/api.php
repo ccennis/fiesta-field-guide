@@ -5,6 +5,7 @@ use App\Http\Controllers\ColorController;
 use App\Http\Controllers\HoldingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\VariantController;
+use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('lines', [CatalogController::class, 'lines']);
@@ -25,3 +26,8 @@ Route::patch('colors/{color}', [ColorController::class, 'update']);
 
 Route::post('holdings', [HoldingController::class, 'store']);
 Route::patch('holdings/{holding}', [HoldingController::class, 'update']);
+
+Route::get('wishlist', [WishlistController::class, 'index']);
+Route::post('wishlist', [WishlistController::class, 'store']);
+Route::patch('wishlist/{wishlistItem}', [WishlistController::class, 'update']);
+Route::delete('wishlist/{wishlistItem}', [WishlistController::class, 'destroy']);

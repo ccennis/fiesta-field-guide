@@ -8,7 +8,14 @@ const OWNERSHIP = [
     { key: 'all', label: 'Everything' },
     { key: 'owned', label: 'I own' },
     { key: 'missing', label: "I'm missing" },
+    { key: 'wishlist', label: 'On my wishlist' },
 ];
+
+function ownershipParams(params, ownership) {
+    if (ownership === 'owned') params.set('owned', '1');
+    if (ownership === 'missing') params.set('owned', '0');
+    if (ownership === 'wishlist') params.set('wishlisted', '1');
+}
 
 const SELECT = 'rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm font-medium focus:border-glaze-lagoon focus:outline-none';
 
@@ -57,7 +64,7 @@ export default function Collection() {
 
     useEffect(() => {
         const params = new URLSearchParams({ per_page: '200' });
-        if (ownership !== 'all') params.set('owned', ownership === 'owned' ? '1' : '0');
+        ownershipParams(params, ownership);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);
@@ -73,7 +80,7 @@ export default function Collection() {
 
     const refresh = () => {
         const params = new URLSearchParams({ per_page: '200' });
-        if (ownership !== 'all') params.set('owned', ownership === 'owned' ? '1' : '0');
+        ownershipParams(params, ownership);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);

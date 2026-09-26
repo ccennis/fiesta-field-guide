@@ -24,14 +24,119 @@ function RarityFact({ label, value }) {
     );
 }
 
+const PRIORITY_BUTTON = 'rounded-full px-3 py-1 text-xs font-bold transition';
+
+/**
+ * An item can name this exact piece, or the product in any plain color. When
+ * both exist the exact one is what the server returns.
+ */
+function WishlistCard({ variant, item, onChange }) {
+    const { post, patch, destroy, error } = useApi();
+    const [maxPrice, setMaxPrice] = useState(item?.max_price ?? '');
+
+    useEffect(() => {
+        setMaxPrice(item?.max_price ?? '');
+    }, [item]);
+
+    const add = async (priority, anyColor) => {
+        const created = await post('/api/wishlist', {
+            product_id: variant.product.id,
+            variant_id: anyColor ? null : variant.id,
+            priority,
+        });
+        if (created) onChange(created);
+    };
+
+    const update = async (changes) => {
+        const updated = await patch(`/api/wishlist/${item.id}`, changes);
+        if (updated) onChange(updated);
+    };
+
+    const remove = async () => {
+        const gone = await destroy(`/api/wishlist/${item.id}`);
+        if (gone) onChange(null);
+    };
+
+    const saveMaxPrice = () => {
+        const next = maxPrice === '' ? null : Number(maxPrice);
+        if (next !== (item.max_price ?? null)) update({ max_price: next });
+    };
+
+    if (!item) {
+        return (
+            <div className="space-y-2">
+                <p className="text-sm font-bold text-glaze-slate">Not on your wishlist.</p>
+                <div className="flex flex-wrap gap-2">
+                    <button onClick={() => add('want', false)} className={`${PRIORITY_BUTTON} bg-glaze-shell text-glaze-ink hover:bg-glaze-sun/40`}>
+                        Add as want
+                    </button>
+                    <button onClick={() => add('grail', false)} className={`${PRIORITY_BUTTON} bg-glaze-sun text-glaze-ink hover:bg-glaze-sun/80`}>
+                        Add as grail
+                    </button>
+                    {!variant.decoration && (
+                        <button onClick={() => add('want', true)} className={`${PRIORITY_BUTTON} text-glaze-slate underline-offset-2 hover:underline`}>
+                            Any color of {variant.product.name}
+                        </button>
+                    )}
+                </div>
+                {error && <p className="text-sm text-glaze-flame">{error}</p>}
+            </div>
+        );
+    }
+
+    const isGrail = item.priority.value === 'grail';
+
+    return (
+        <div className="space-y-3 rounded-2xl border-2 border-glaze-sun bg-white px-4 py-3">
+            <p className="text-sm font-bold text-glaze-ink">
+                Yes, as a {item.priority.label.toLowerCase()}
+                {item.any_color && <span className="font-normal text-glaze-slate"> · any color of this product</span>}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+                <button
+                    onClick={() => update({ priority: isGrail ? 'want' : 'grail' })}
+                    className={`${PRIORITY_BUTTON} ${isGrail ? 'bg-glaze-sun text-glaze-ink' : 'bg-glaze-shell text-glaze-slate'}`}
+                >
+                    {isGrail ? 'Grail' : 'Make it a grail'}
+                </button>
+
+                <label className="flex items-center gap-2 text-sm text-glaze-slate">
+                    I'd pay up to $
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        onBlur={saveMaxPrice}
+                        placeholder="—"
+                        className="w-24 rounded-lg border-2 border-glaze-shell px-2 py-1 text-sm font-bold text-glaze-ink focus:border-glaze-lagoon focus:outline-none"
+                    />
+                </label>
+
+                <button onClick={remove} className="ml-auto text-xs font-bold text-glaze-slate underline-offset-2 hover:underline">
+                    Remove
+                </button>
+            </div>
+
+            {error && <p className="text-sm text-glaze-flame">{error}</p>}
+        </div>
+    );
+}
+
 export default function VariantDetail({ variantId }) {
     const { data: variant, loading, error, get } = useApi();
     const { patch } = useApi();
     const [holdings, setHoldings] = useState([]);
+    const [wishlistItem, setWishlistItem] = useState(null);
 
     useEffect(() => {
         if (variantId) {
-            get(`/api/variants/${variantId}`).then((v) => setHoldings(v?.holdings ?? []));
+            get(`/api/variants/${variantId}`).then((v) => {
+                setHoldings(v?.holdings ?? []);
+                setWishlistItem(v?.wishlist_item ?? null);
+            });
         }
     }, [variantId, get]);
 
@@ -170,6 +275,10 @@ export default function VariantDetail({ variantId }) {
                 ) : (
                     <p className="text-sm font-bold text-glaze-slate">No — you do not have this one.</p>
                 )}
+            </Card>
+
+            <Card title="On your wishlist?">
+                <WishlistCard variant={variant} item={wishlistItem} onChange={setWishlistItem} />
             </Card>
         </div>
     );

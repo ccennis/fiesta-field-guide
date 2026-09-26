@@ -3,10 +3,12 @@ import { useApi } from '../hooks/useApi';
 import Identify from './Identify';
 import Collection from './Collection';
 import Products from './Products';
+import Wishlist from './Wishlist';
 
 const TABS = [
     { key: 'identify', label: 'Identify a piece' },
     { key: 'collection', label: 'Collection' },
+    { key: 'wishlist', label: 'Wishlist' },
     { key: 'products', label: 'Products' },
 ];
 
@@ -63,6 +65,11 @@ export default function App() {
                                     label={`of ${summary.variants_total.toLocaleString()} verified`}
                                     tone="text-glaze-flame"
                                 />
+                                <Stat
+                                    value={summary.wishlist_open}
+                                    label={`wished for · ${summary.grails_open} grail${summary.grails_open === 1 ? '' : 's'}`}
+                                    tone="text-glaze-cream"
+                                />
                             </div>
                         )}
                     </div>
@@ -88,6 +95,7 @@ export default function App() {
             <main className="mx-auto max-w-[1600px] px-6 py-6">
                 {tab === 'identify' && <Identify />}
                 {tab === 'collection' && <Collection />}
+                {tab === 'wishlist' && <Wishlist />}
                 {tab === 'products' && <Products />}
             </main>
         </div>

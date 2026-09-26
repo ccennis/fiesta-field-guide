@@ -19,6 +19,9 @@ class HoldingResource extends JsonResource
             'purchase_date' => $this->purchase_date?->toDateString(),
             'notes' => $this->notes,
             'variant' => new VariantResource($this->whenLoaded('variant')),
+            'fulfilled_wishlist_item' => $this->relationLoaded('fulfilledWishlistItem') && $this->fulfilledWishlistItem
+                ? new WishlistItemResource($this->fulfilledWishlistItem)
+                : null,
         ];
     }
 }

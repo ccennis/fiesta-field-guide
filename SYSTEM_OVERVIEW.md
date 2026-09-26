@@ -52,8 +52,8 @@ The cost is a system that looks less complete than one which guessed. That is th
 
 ## What I would do next
 
-The grail list is specified and unbuilt, and it is the feature I would use most. Roughly 40 combinations I typed into my spreadsheet because I want them are currently indistinguishable from the 1,600 theoretical ones I have never seen.
+The wishlist is built. It is its own table rather than a flavor of the catalog, because wanting a piece is a fact about me and existing is a fact about Fiesta. The qty 0 rows in my spreadsheet import as wishlist items and no longer count as evidence that a piece was made, since some of those combinations may never have existed. Recording a piece crosses off the matching item.
 
-After that: hex values measured from my own pieces rather than a community reference, a second round of valuations so the trend has something to draw, and the shapes I hunt but have never owned, since the shape axis is bounded by my own collection and cannot identify a covered onion soup.
+Next: hex values measured from my own pieces rather than a community reference, a second round of valuations so the trend has something to draw, and the shapes I hunt but have never owned, since the shape axis is bounded by my own collection and cannot identify a covered onion soup.
 
 Then the version I actually want, which is the mobile guide with product images that identifies a piece in the wild. Everything here is the catalog that would have to sit underneath it.

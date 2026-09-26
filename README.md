@@ -66,8 +66,22 @@ invented reference data. Value and condition are shown side by side.
 
 Variants are generated, so most were never confirmed to exist. `existence` starts
 `unconfirmed` and is promoted to `confirmed` only where the source data evidences it.
-Owning a piece is evidence. The interface says **no known example** rather than dressing a
-generated row up as a real listing.
+Owning a piece is evidence. Listing a piece at qty 0 is not. The interface says **no known
+example** rather than dressing a generated row up as a real listing.
+
+### The wishlist
+
+A wishlist item names a product and optionally a variant. A null variant means that product
+in any plain color; it never matches a decorated piece, since a decal is its own hunt.
+Priority is `grail` or `want`, and `max_price` records what the owner would pay.
+
+Recording a piece fulfills the matching open item, the exact variant first and then an
+any-color item for the product. Fulfilled items are kept, pointing at the holding that
+fulfilled them, and can be reopened. Only one open item per target is allowed.
+
+The importer turns the spreadsheet's qty 0 rows into wishlist items tagged `import`, and
+does not treat them as evidence the piece exists. A qty 0 row whose variant is owned
+elsewhere in the sheet is reported instead.
 
 ## Importing
 
@@ -78,7 +92,18 @@ php artisan fiesta:import-catalog --fresh
 php artisan fiesta:import-holdings
 ```
 
-Both print a reconciliation report and write it to
+To bring the wishlist into a database without re-importing holdings, so pieces recorded in
+the app are kept:
+
+```bash
+php artisan fiesta:import-wishlist
+```
+
+It only reads the qty 0 rows, skips anything already owned or already open on the
+wishlist, and sets variants confirmed only by a qty 0 row back to unconfirmed. It is safe
+to run more than once.
+
+All three print a reconciliation report and write it to
 `storage/app/private/reports/`. **Nothing in the source data is silently resolved.** The
 report covers cross-tab disagreements, quantity and value ambiguities, product names that
 may describe one object, and every assumption the importer had to make.
@@ -96,7 +121,7 @@ All responses use `{ success, message, data, errors }`.
 | GET | `/api/products` | Product picker, `?line_id=` |
 | GET | `/api/colors` | Color picker, `?line_id=` `?product_id=` `?era=` |
 | GET | `/api/decorations` | Decal and novelty treatments |
-| GET | `/api/variants` | `?owned=1\|0` `?line_id=` `?era=` `?product_id=` `?color_id=` |
+| GET | `/api/variants` | `?owned=1\|0` `?wishlisted=1\|0` `?line_id=` `?era=` `?product_id=` `?color_id=` |
 | GET | `/api/variants/{id}` | The identification answer |
 | GET | `/api/collection/summary` | Headline totals |
 | POST | `/api/products` | Add a product |
@@ -106,8 +131,12 @@ All responses use `{ success, message, data, errors }`.
 | PATCH | `/api/colors/{id}` | Edit hex |
 | POST | `/api/holdings` | Record a piece |
 | PATCH | `/api/holdings/{id}` | Condition and condition notes |
+| GET | `/api/wishlist` | `?fulfilled=1\|0` `?priority=` `?line_id=` `?product_id=`, grails first |
+| POST | `/api/wishlist` | Add an item; omit `variant_id` for any color |
+| PATCH | `/api/wishlist/{id}` | Priority, max price, notes, `fulfilled` to reopen |
+| DELETE | `/api/wishlist/{id}` | Remove an item |
 
-`/api/variants` backs both the collection view and the want list. They are the same query
+`/api/variants` backs both the collection view and the missing view. They are the same query
 with `owned` flipped. Unfiltered, "missing" is 1,647 rows, which is why the line, era and
 product filters are not optional in practice.
 
@@ -120,8 +149,9 @@ holdings that point at them.
 | File | Purpose |
 |---|---|
 | `components/Identify.jsx` | Product first, color second. No free text color search, because the color name is the thing being worked out. |
-| `components/Collection.jsx` | Filters plus the own/missing toggle |
-| `components/VariantDetail.jsx` | The answer panel, and inline condition editing |
+| `components/Collection.jsx` | Filters plus the own/missing/wishlist toggle |
+| `components/Wishlist.jsx` | Open and found items, grail toggle, remove and reopen |
+| `components/VariantDetail.jsx` | The answer panel, inline condition editing, and the wishlist card |
 | `components/Products.jsx` | Rename, merge and add products |
 | `components/RowActions.jsx` | Per-row editing of hex and owned pieces |
 | `components/Swatch.jsx` | Deliberately obvious placeholder where hex data is absent |
@@ -129,9 +159,9 @@ holdings that point at them.
 
 ## Known gaps
 
-- **The want list is unbuilt.** Roughly 40 combinations the owner typed into the
-  spreadsheet without owning them are indistinguishable from the 1,600 that are merely
-  generated. The missing view cannot separate wanting something from never having seen it.
+- **Any-color items cannot list their colors.** Which products were made in which colors
+  is not in the source data, so an any-color item matches every plain color of the
+  product rather than only the ones that exist.
 - **Eleven colors have no hex.** Heather, Ivory, Light Green, Peacock, Red, Red (Orange
   Red), Rose, Turquoise, Evergreen, Foundry and Linen render as dashed placeholders. The
   51 that do have values are community sourced and approximate, not measured from the

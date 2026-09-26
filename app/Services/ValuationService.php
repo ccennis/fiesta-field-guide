@@ -56,6 +56,30 @@ class ValuationService extends BaseService
         return $resolved;
     }
 
+    /**
+     * The product level figure only, for questions that name a product but no
+     * color, such as an any-color wishlist item.
+     *
+     * @param  Collection<int, int>  $productIds
+     * @return array<int, ?ValueObservation> keyed by product id
+     */
+    public function resolveForProducts(Collection $productIds): array
+    {
+        $resolved = [];
+
+        $observations = ValueObservation::whereIn('product_id', $productIds->unique())
+            ->whereNull('color_id')
+            ->orderByDesc('observed_on')
+            ->orderByDesc('id')
+            ->get();
+
+        foreach ($observations as $observation) {
+            $resolved[$observation->product_id] ??= $observation;
+        }
+
+        return $resolved;
+    }
+
     public function resolve(Variant $variant): ?ValueObservation
     {
         return $this->resolveMany(collect([$variant]))[$variant->id] ?? null;

@@ -4,6 +4,8 @@ namespace App\Services\Import;
 
 use App\Enums\ValueSource;
 use App\Enums\VariantExistence;
+use App\Enums\WishlistPriority;
+use App\Enums\WishlistSource;
 use App\Models\Color;
 use App\Models\Decoration;
 use App\Models\Holding;
@@ -11,10 +13,12 @@ use App\Models\Line;
 use App\Models\Product;
 use App\Models\ValueObservation;
 use App\Models\Variant;
+use App\Models\WishlistItem;
 use App\Services\BaseService;
 
 /**
- * Imports owned pieces and value observations.
+ * Imports owned pieces, value observations, and the wishlist implied by qty 0
+ * rows.
  *
  * The detail tab drives holdings because it is the only source carrying line,
  * value and real product names. The matrix tab contributes pieces for colors the
@@ -56,6 +60,9 @@ class HoldingImporter extends BaseService
     /** @var array<int, array<int, array{product_id: int, color_id: int, amount: float}>> */
     private array $unitValues = [];
 
+    /** @var array<int, array{product_id: int, source: string}> qty 0 rows, keyed by variant id */
+    private array $listedNotOwned = [];
+
     public function __construct(
         private SeedDataReader $reader,
     ) {}
@@ -66,10 +73,99 @@ class HoldingImporter extends BaseService
         $this->importDetail($report);
         $this->importMatrixOnlyColors($report);
         $this->buildValueObservations($report);
+        $this->buildWishlist($report);
 
         $report->set('holdings created', Holding::count());
         $report->set('variants confirmed by evidence', Variant::where('existence', VariantExistence::Confirmed)->count());
         $report->set('value observations', ValueObservation::count());
+    }
+
+    /**
+     * Only the qty 0 rows, for a database whose holdings should not be
+     * re-imported. Safe to run more than once.
+     */
+    public function importWishlist(ImportReport $report): void
+    {
+        $this->buildIndexes();
+
+        $lines = Line::pluck('id', 'name')->all();
+
+        foreach ($this->reader->detailRows() as $row) {
+            if ($row['qty'] !== 0) {
+                continue;
+            }
+
+            $resolved = $this->resolveDetailRow($row, $lines, $report);
+
+            if ($resolved !== null) {
+                $this->listNotOwned($resolved['variant'], $row);
+            }
+        }
+
+        $this->buildWishlist($report);
+
+        $report->set('open wishlist items', WishlistItem::open()->count());
+    }
+
+    /**
+     * Resolve a detail row to its catalog variant, reporting why when it cannot.
+     *
+     * @param  array<string, int>  $lines
+     * @return array{variant: Variant, product: Product, color: Color}|null
+     */
+    private function resolveDetailRow(array $row, array $lines, ImportReport $report): ?array
+    {
+        $lineId = $lines[$row['line']];
+        $decorationSource = $this->decorationSources[mb_strtolower(SeedDataReader::parseColor($row['color'])['name'])] ?? null;
+
+        if ($decorationSource !== null) {
+            $parsed = ['name' => $decorationSource['color'], 'from' => $decorationSource['color_produced_from']];
+            $from = $decorationSource['color_produced_from'];
+        } else {
+            $parsed = SeedDataReader::parseColor($row['color']);
+            $from = $row['line'] === SeedDataReader::LINE_FIESTA ? $parsed['from'] : null;
+        }
+
+        $color = $this->colors[$this->colorKey($lineId, $parsed['name'], $from)] ?? null;
+
+        if ($color === null) {
+            $report->add('Rows skipped: color not resolved', "Row {$row['row']}: \"{$row['color']}\" ({$row['line']}).");
+
+            return null;
+        }
+
+        $this->colorsSeenInDetail[$color->id] = true;
+
+        $productParsed = SeedDataReader::parseProduct($row['type']);
+
+        if ($productParsed === null) {
+            $report->add(
+                'Rows skipped: no product given',
+                "Row {$row['row']}: \"{$row['color']}\" has a color but no Type, Qty or Value."
+            );
+
+            return null;
+        }
+
+        $product = $this->products[$lineId.'|'.$productParsed['key']] ?? null;
+        $decorationId = $decorationSource['decoration_id'] ?? '';
+        $variant = $product ? ($this->variants[$product->id.'|'.$color->id.'|'.$decorationId] ?? null) : null;
+
+        if ($variant === null) {
+            $report->add('Rows skipped: variant not resolved', "Row {$row['row']}: \"{$row['color']}\" / \"{$row['type']}\".");
+
+            return null;
+        }
+
+        return ['variant' => $variant, 'product' => $product, 'color' => $color];
+    }
+
+    private function listNotOwned(Variant $variant, array $row): void
+    {
+        $this->listedNotOwned[$variant->id] = [
+            'product_id' => $variant->product_id,
+            'source' => "Row {$row['row']}: \"{$row['color']}\" / \"{$row['type']}\"",
+        ];
     }
 
     private function buildIndexes(): void
@@ -110,60 +206,26 @@ class HoldingImporter extends BaseService
         $lines = Line::pluck('id', 'name')->all();
 
         foreach ($this->reader->detailRows() as $row) {
-            $lineId = $lines[$row['line']];
-            $decorationSource = $this->decorationSources[mb_strtolower(SeedDataReader::parseColor($row['color'])['name'])] ?? null;
+            $resolved = $this->resolveDetailRow($row, $lines, $report);
 
-            if ($decorationSource !== null) {
-                $parsed = ['name' => $decorationSource['color'], 'from' => $decorationSource['color_produced_from']];
-                $from = $decorationSource['color_produced_from'];
-            } else {
-                $parsed = SeedDataReader::parseColor($row['color']);
-                $from = $row['line'] === SeedDataReader::LINE_FIESTA ? $parsed['from'] : null;
-            }
-
-            $color = $this->colors[$this->colorKey($lineId, $parsed['name'], $from)] ?? null;
-
-            if ($color === null) {
-                $report->add('Rows skipped: color not resolved', "Row {$row['row']}: \"{$row['color']}\" ({$row['line']}).");
-
+            if ($resolved === null) {
                 continue;
             }
 
-            $this->colorsSeenInDetail[$color->id] = true;
+            ['variant' => $variant, 'product' => $product, 'color' => $color] = $resolved;
 
-            $productParsed = SeedDataReader::parseProduct($row['type']);
+            $qty = $this->resolveQuantity($row, $report);
 
-            if ($productParsed === null) {
-                $report->add(
-                    'Rows skipped: no product given',
-                    "Row {$row['row']}: \"{$row['color']}\" has a color but no Type, Qty or Value."
-                );
-
-                continue;
-            }
-
-            $product = $this->products[$lineId.'|'.$productParsed['key']] ?? null;
-            $decorationId = $decorationSource['decoration_id'] ?? '';
-            $variant = $product ? ($this->variants[$product->id.'|'.$color->id.'|'.$decorationId] ?? null) : null;
-
-            if ($variant === null) {
-                $report->add('Rows skipped: variant not resolved', "Row {$row['row']}: \"{$row['color']}\" / \"{$row['type']}\".");
+            if ($qty < 1) {
+                if ($row['qty'] === 0) {
+                    $this->listNotOwned($variant, $row);
+                }
 
                 continue;
             }
 
             $variant->existence = VariantExistence::Confirmed;
             $variant->saveQuietly();
-
-            $qty = $this->resolveQuantity($row, $report);
-
-            if ($qty < 1) {
-                if ($row['qty'] === 0) {
-                    $report->count('detail rows listed but not owned (qty 0)');
-                }
-
-                continue;
-            }
 
             if ($row['qty'] !== null && $row['qty'] > 1) {
                 $report->add(
@@ -211,7 +273,7 @@ class HoldingImporter extends BaseService
 
         $report->add(
             'Blank quantities',
-            "Row {$row['row']}: \"{$row['color']}\" / \"{$row['type']}\" has no quantity and no value. Imported as none."
+            "Row {$row['row']}: \"{$row['color']}\" / \"{$row['type']}\" has no quantity and no value. Imported as none and not added to the wishlist."
         );
 
         return 0;
@@ -351,6 +413,52 @@ class HoldingImporter extends BaseService
             "The source spreadsheet carries no dates. Every imported observation is dated {$observedOn}, "
             .'the date of import, so value over time has a single point until you add more.'
         );
+    }
+
+    /**
+     * A qty 0 row is something the owner listed without having. It becomes a
+     * wishlist item, and is not taken as evidence the piece was ever made, so a
+     * variant confirmed only by such a row is set back to unconfirmed. A variant
+     * that is already owned is reported rather than wished for, and one already
+     * open on the wishlist is left alone.
+     */
+    private function buildWishlist(ImportReport $report): void
+    {
+        $variantIds = array_keys($this->listedNotOwned);
+        $owned = Holding::whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
+        $open = WishlistItem::open()->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
+        $confirmed = Variant::whereIn('id', $variantIds)
+            ->where('existence', VariantExistence::Confirmed)
+            ->pluck('id')
+            ->flip();
+
+        foreach ($this->listedNotOwned as $variantId => $listing) {
+            if (isset($owned[$variantId])) {
+                $report->add('Listed at qty 0 but already owned', "{$listing['source']}. Not added to the wishlist.");
+
+                continue;
+            }
+
+            if (isset($confirmed[$variantId])) {
+                Variant::whereKey($variantId)->update(['existence' => VariantExistence::Unconfirmed]);
+                $report->add('Set back to unconfirmed: listed but never owned', "{$listing['source']}.");
+            }
+
+            if (isset($open[$variantId])) {
+                $report->count('qty 0 rows already on the wishlist');
+
+                continue;
+            }
+
+            WishlistItem::create([
+                'product_id' => $listing['product_id'],
+                'variant_id' => $variantId,
+                'priority' => WishlistPriority::Want,
+                'source' => WishlistSource::Import,
+            ]);
+
+            $report->count('wishlist items created from qty 0 rows');
+        }
     }
 
     private function colorKey(int $lineId, string $name, ?int $from): string

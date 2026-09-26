@@ -18,6 +18,10 @@ export function useApi() {
                 ...options,
             });
 
+            if (response.status === 204) {
+                return true;
+            }
+
             const json = await response.json();
 
             if (!response.ok || !json.success) {

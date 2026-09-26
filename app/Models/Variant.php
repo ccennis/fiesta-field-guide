@@ -32,6 +32,11 @@ class Variant extends Model
         return $this->hasMany(Holding::class);
     }
 
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class);
+    }
+
     protected function casts(): array
     {
         return [
