@@ -29,10 +29,10 @@
 ### Example
 ```php
 // Good
-return $this->success(new PostResource($post));
+return $this->success(new ProductResource($product));
 
 // Bad
-return response()->json(['id' => $post->id, 'title' => $post->title]);
+return response()->json(['id' => $product->id, 'name' => $product->name]);
 ```
 
 ## Email & Notifications
@@ -76,7 +76,7 @@ return response()->json(['id' => $post->id, 'title' => $post->title]);
 - Keep comments to a minimum
 - No emojis in code or comments
 - Do not make proactive decisions about implementation — always present options and wait for direction before writing code
-- Do not perform any git operations — git is handled manually
+- Always ask for permission before performing any git actions.
 - No extra packages unless explicitly asked for
 
 ## Domain Data
@@ -87,9 +87,3 @@ return response()->json(['id' => $post->id, 'title' => $post->title]);
 - When source data is ambiguous or two sources disagree, surface the conflict for a
   decision. Never silently pick a resolution.
 - If catalog data is needed and has not been provided, stop and ask.
-
-## Constraints
-- No external API calls. The system must run fully offline with no API keys.
-- Timeboxed exercise. Prefer the simplest thing that works over the most complete thing.
-- A reviewer must be able to clone and run this with `composer setup` then `composer dev`
-  and nothing else. Do not add setup steps.

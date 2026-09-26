@@ -18,11 +18,7 @@ What I want is something that wrangles that complexity into three answers: what 
 
 This build is phase one. Every Fiesta color with a community-accepted hex, crossed against the shapes I know about, with my own collection layered on top. Later iterations can get more ambitious, and the one I actually want to build at some point is a mobile reference guide with product images that can identify a piece in the wild. That's a much more complex problem than the one I solved here, and it needs this catalog underneath it to be worth anything.
 
-I considered two other projects first: a tool that stitches exported GPX rides into new routes, and a freight invoice audit that checks carrier charges against contracted rates. Both were reasonable. I dropped them for the same reason. In each case I would have been learning the domain and directing the AI at the same time, and I would not have been able to tell a wrong answer from a right one quickly.
-
-With Fiesta I can. That turned out to matter more than picking something impressive, and it paid off in a way I did not anticipate. The AI's most useful contributions were the places it read my data more carefully than I had, and I could only recognize those as correct because I knew the subject.
-
-There was a second reason I did not see at the start. My spreadsheet had been working around this system's central problem for years. Every color is stored as a string with the production years jammed inside it, `Cobalt(1936-1951)` next to `Cobalt (1986-)`, because the color name alone was never enough to identify anything. I had been hand-encoding a composite key into a text field and calling it a color.
+There was a reason I did not see at the start. My spreadsheet had been working around this system's central problem for years. Every color is stored as a string with the production years jammed inside it, `Cobalt(1936-1951)` next to `Cobalt (1986-)`, because the color name alone was never enough to identify anything. I had been hand-encoding a composite key into a text field and calling it a color.
 
 ## Key architectural decisions
 
@@ -42,9 +38,9 @@ This over-generates, so it does not pretend otherwise. Variants carry an `existe
 
 ## Trade-offs I made on purpose
 
-**SQLite and no Docker**, against my normal habit. A reviewer has to clone this and run it, so setup time is a real constraint of this particular deliverable even though it would not be one for a production system. `composer setup` then `composer dev`, nothing else.
+**SQLite and no Docker**, against my normal habit, so setup stays at `composer setup` then `composer dev`.
 
-**No photo-based identification, even though it is the end goal.** Deferred rather than rejected. It needs an API key a reviewer will not have, glaze color photographs badly under antique mall lighting, and building it now would have been a thin wrapper around someone else's model sitting on a catalog that did not exist yet. The catalog has to be right before a photo lookup means anything. Guided narrowing is deterministic, testable, and works with no signal in the back of a shop, which is where I am when I need it.
+**No photo-based identification, even though it is the end goal.** Deferred rather than rejected. Glaze color photographs badly under antique mall lighting, and building it now would have been a thin wrapper around someone else's model sitting on a catalog that did not exist yet. The catalog has to be right before a photo lookup means anything. Guided narrowing is deterministic, testable, and works with no signal in the back of a shop, which is where I am when I need it.
 
 **No eBay integration.** Completed-sales data is restricted and it is a rabbit hole. Manually entered comparables and CSV import instead.
 

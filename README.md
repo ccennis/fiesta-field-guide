@@ -147,5 +147,3 @@ holdings that point at them.
 - **Two product pairs are still unresolved.** `Nappy 8.5"` and `Nappy Bowl` may be one
   object. `Canniser, Small` and `Cannister, Large` are two sizes carrying two different
   misspellings. The merge and rename tools exist; the rulings have not been made.
-- **The starter's Post slice is still in the repo.** `Post`, `PostController`,
-  `PostService` and `PostList.jsx` were the pattern reference and should have been deleted.
