@@ -43,8 +43,64 @@ function Years({ color, onSaved }) {
             {error && <p className="text-sm font-bold text-glaze-flame">{error}</p>}
             {saved && !error && <p className="text-sm font-bold text-glaze-fern">Saved. The era follows the first year.</p>}
             <p className="text-xs text-glaze-slate">
-                Saved to the database only. Put the change in the seed data as well to survive a catalog re-import.
+                Swatches and years are saved to the database only. Put them in the seed data as well to survive a catalog re-import.
             </p>
+        </form>
+    );
+}
+
+/**
+ * The swatch is a literal #rrggbb. It applies to this color everywhere.
+ */
+function SwatchField({ color, onSaved }) {
+    const { patch, loading, error } = useApi();
+    const [hex, setHex] = useState(color.hex ?? '');
+    const [saved, setSaved] = useState(null);
+
+    useEffect(() => {
+        setHex(color.hex ?? '');
+        setSaved(null);
+    }, [color]);
+
+    const save = async (value) => {
+        const updated = await patch(`/api/colors/${color.id}`, { hex: value });
+        if (updated) {
+            setSaved(value ? 'Swatch saved.' : 'Swatch cleared.');
+            onSaved(updated);
+        }
+    };
+
+    const valid = /^#[0-9a-fA-F]{6}$/.test(hex);
+
+    return (
+        <form
+            onSubmit={(e) => {
+                e.preventDefault();
+                save(hex === '' ? null : hex);
+            }}
+            className="space-y-2"
+        >
+            <h3 className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">Swatch</h3>
+            <div className="flex gap-2">
+                <input
+                    type="color"
+                    value={valid ? hex : '#cccccc'}
+                    onChange={(e) => setHex(e.target.value)}
+                    aria-label="Pick a swatch"
+                    className="h-10 w-14 shrink-0 cursor-pointer rounded-lg border-2 border-glaze-shell bg-white"
+                />
+                <input value={hex} onChange={(e) => setHex(e.target.value)} placeholder="#rrggbb" className={`${INPUT} font-mono`} />
+                <button type="submit" disabled={loading} className={`${BUTTON} shrink-0 bg-glaze-ink text-glaze-cream`}>
+                    Save
+                </button>
+            </div>
+            {color.hex && (
+                <button type="button" onClick={() => save(null)} className="text-xs font-bold text-glaze-slate hover:underline">
+                    Clear the swatch
+                </button>
+            )}
+            {error && <p className="text-sm font-bold text-glaze-flame">{error}</p>}
+            {saved && !error && <p className="text-sm font-bold text-glaze-fern">{saved}</p>}
         </form>
     );
 }
@@ -100,8 +156,8 @@ function Checklist({ color }) {
 }
 
 /**
- * The owner's color editor: correct the years a color was made, and check off
- * the products it came in.
+ * The admin's color editor: set the swatch, correct the years a color was
+ * made, and check off the products it came in.
  */
 export default function ColorAdmin() {
     const { get } = useApi();
@@ -166,6 +222,7 @@ export default function ColorAdmin() {
                             </p>
                         </div>
                     </div>
+                    <SwatchField color={selected} onSaved={onSaved} />
                     <Years color={selected} onSaved={onSaved} />
                     <Checklist color={selected} />
                 </section>
