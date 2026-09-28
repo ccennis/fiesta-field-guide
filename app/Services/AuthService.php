@@ -14,7 +14,8 @@ class AuthService extends BaseService
 {
     public function login(Request $request, array $credentials): ?User
     {
-        if (! Auth::attempt($credentials, remember: true)) {
+        // A tester whose access was removed cannot sign in again.
+        if (! Auth::attempt($credentials + ['disabled_at' => null], remember: true)) {
             return null;
         }
 

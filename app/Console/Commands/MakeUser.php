@@ -2,19 +2,24 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\UserRole;
+use App\Models\Holding;
 use App\Models\User;
+use App\Models\WishlistItem;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 /**
- * There is no sign-up page. The owner's login is created, or its password
- * reset, from the terminal so the password is never typed anywhere else.
+ * There is no public sign-up page. The owner's login is created, or anyone's
+ * password reset, from the terminal so the password is never typed anywhere
+ * else. Testers join through invite links instead.
  */
 class MakeUser extends Command
 {
     protected $signature = 'fiesta:make-user {email} {--name=Owner}';
 
-    protected $description = 'Create the login, or reset its password if the email already exists';
+    protected $description = "Create the owner's login, or reset anyone's password if the email already exists";
 
     public function handle(): int
     {
@@ -40,12 +45,35 @@ class MakeUser extends Command
             return self::FAILURE;
         }
 
-        $user = User::updateOrCreate(
-            ['email' => $email],
-            ['name' => $this->option('name'), 'password' => $password],
-        );
+        $existing = User::where('email', $email)->first();
 
-        $this->info($user->wasRecentlyCreated ? "Created a login for {$email}." : "Reset the password for {$email}.");
+        if ($existing !== null) {
+            $existing->update(['password' => $password]);
+            $this->info("Reset the password for {$email}.");
+
+            return self::SUCCESS;
+        }
+
+        if (User::owner() !== null) {
+            $this->error('The owner account already exists. Testers join with an invite link from the Testers screen.');
+
+            return self::FAILURE;
+        }
+
+        DB::transaction(function () use ($email, $password) {
+            $owner = User::create([
+                'name' => $this->option('name'),
+                'email' => $email,
+                'password' => $password,
+                'role' => UserRole::Owner,
+            ]);
+
+            // Pieces and wishes imported before any account existed are the owner's.
+            Holding::whereNull('user_id')->update(['user_id' => $owner->id]);
+            WishlistItem::whereNull('user_id')->update(['user_id' => $owner->id]);
+        });
+
+        $this->info("Created the owner login for {$email}.");
 
         return self::SUCCESS;
     }

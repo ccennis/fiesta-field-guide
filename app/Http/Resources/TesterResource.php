@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Http\Resources;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class TesterResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'email' => $this->email,
+            'pieces' => $this->whenCounted('holdings'),
+            'joined' => $this->created_at?->toDateString(),
+            'disabled' => $this->isDisabled(),
+        ];
+    }
+}

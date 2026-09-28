@@ -17,11 +17,11 @@ class HoldingController extends Controller
 
     public function store(StoreHoldingRequest $request): JsonResponse
     {
-        return $this->created(new HoldingResource($this->holdingService->create($request->validated())));
+        return $this->created(new HoldingResource($this->holdingService->create($request->validated(), $request->user())));
     }
 
     public function update(UpdateHoldingRequest $request, Holding $holding): JsonResponse
     {
-        return $this->success(new HoldingResource($this->holdingService->update($holding, $request->validated())));
+        return $this->success(new HoldingResource($this->holdingService->update($holding, $request->validated(), $request->user())));
     }
 }

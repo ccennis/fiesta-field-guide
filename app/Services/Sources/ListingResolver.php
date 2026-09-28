@@ -9,6 +9,7 @@ use App\Enums\VariantExistence;
 use App\Models\ColorAlias;
 use App\Models\ExternalListing;
 use App\Models\ProductAlias;
+use App\Models\User;
 use App\Models\Variant;
 use App\Models\VariantEvidence;
 use App\Services\BaseService;
@@ -131,7 +132,14 @@ class ListingResolver extends BaseService
 
         VariantEvidence::where('external_listing_id', $listing->id)->delete();
 
-        $variant = Variant::withCount(['evidence', 'holdings'])->find($listing->variant_id);
+        // Only the owner's pieces count as evidence. Before an owner account
+        // exists, the imported pieces have no user and are the owner's.
+        $ownerId = User::owner()?->id;
+        $ownersPieces = fn ($holdings) => $ownerId === null
+            ? $holdings->whereNull('user_id')
+            : $holdings->where('user_id', $ownerId);
+
+        $variant = Variant::withCount(['evidence', 'holdings' => $ownersPieces])->find($listing->variant_id);
 
         if ($variant !== null && $variant->evidence_count === 0 && $variant->holdings_count === 0) {
             $variant->update(['existence' => VariantExistence::Unconfirmed]);

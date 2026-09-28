@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\CollectionView;
 use App\Enums\Era;
 use App\Enums\VariantExistence;
 use Illuminate\Foundation\Http\FormRequest;
@@ -35,6 +36,7 @@ class IndexVariantRequest extends FormRequest
             'owned' => 'sometimes|boolean',
             'decorated' => 'sometimes|boolean',
             'wishlisted' => 'sometimes|boolean',
+            'collection' => ['sometimes', Rule::enum(CollectionView::class)],
             'per_page' => 'sometimes|integer|min:1|max:200',
         ];
     }

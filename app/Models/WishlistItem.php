@@ -9,9 +9,14 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['product_id', 'variant_id', 'priority', 'max_price', 'source', 'notes', 'fulfilled_at', 'fulfilled_by_holding_id'])]
+#[Fillable(['user_id', 'product_id', 'variant_id', 'priority', 'max_price', 'source', 'notes', 'fulfilled_at', 'fulfilled_by_holding_id'])]
 class WishlistItem extends Model
 {
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);

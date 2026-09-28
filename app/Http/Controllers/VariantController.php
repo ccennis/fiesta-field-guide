@@ -8,6 +8,7 @@ use App\Http\Resources\VariantDetailResource;
 use App\Models\Variant;
 use App\Services\CatalogService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class VariantController extends Controller
 {
@@ -21,11 +22,11 @@ class VariantController extends Controller
      */
     public function index(IndexVariantRequest $request): JsonResponse
     {
-        return $this->success(new VariantCollection($this->catalogService->variants($request->validated())));
+        return $this->success(new VariantCollection($this->catalogService->variants($request->validated(), $request->user())));
     }
 
-    public function show(Variant $variant): JsonResponse
+    public function show(Request $request, Variant $variant): JsonResponse
     {
-        return $this->success(new VariantDetailResource($this->catalogService->identify($variant)));
+        return $this->success(new VariantDetailResource($this->catalogService->identify($variant, $request->user())));
     }
 }
