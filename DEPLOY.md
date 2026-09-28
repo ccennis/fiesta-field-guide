@@ -146,6 +146,11 @@ every piece and wishlist item already in the database. A later migration renamed
 admin and tester to member, kept existing members' view of the admin's collection, and
 marked every existing account's email as confirmed.
 
+Two data migrations run commands once on deploy: `fiesta:apply-color-guide` sets every
+Fiesta swatch and year from `database/seed-data/fiesta-color-guide.csv` and adds the colors
+the catalog lacked, then `fiesta:match-store-names` ties store names that exactly match.
+Both are safe to run again by hand.
+
 ## 5. Nightly backup
 
 Forge's database backups cover MySQL and Postgres only, so SQLite needs its own. A

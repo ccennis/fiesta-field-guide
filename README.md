@@ -160,6 +160,15 @@ It only reads the qty 0 rows, skips anything already owned or already open on th
 wishlist, and sets variants confirmed only by a qty 0 row back to unconfirmed. It is safe
 to run more than once.
 
+After a fresh catalog and holdings import, apply the color guide:
+
+```bash
+php artisan fiesta:apply-color-guide
+```
+
+It must come last, because the spreadsheet finds colors by the start years it was written
+with, and the guide corrects some of those years.
+
 The spreadsheet is the admin's, so everything these commands create belongs to the admin.
 `import-holdings --fresh` replaces only the admin's pieces and wishlist. `import-catalog
 --fresh` rebuilds every variant, so it refuses to run once a member has recorded anything.
@@ -174,6 +183,23 @@ cleaned at source and should not be.
 
 ## Outside sources
 
+### The color guide
+
+[fiesta-color-guide.com](https://fiesta-color-guide.com/) is the admin's chosen source for
+Fiesta swatches and production years. Its 61 colors are kept in
+`database/seed-data/fiesta-color-guide.csv`, with a `catalog_name` column where the
+catalog calls a color something else, such as its "Blue (Cobalt)" being Cobalt 1936.
+`fiesta:apply-color-guide` gives each Fiesta color the guide's swatch and years, matching a
+reused name like Cobalt to the nearest start year, and adds any color the catalog lacks.
+It is safe to run again. The guide covers Fiesta only, so Harlequin and Riviera swatches
+still have to be entered in Admin, Colors.
+
+Some of the guide's values are rough. It gives vintage and post-86 Cobalt, Rose, Red and
+Turquoise the same codes, and uses pure black and white. They can be corrected per color
+in Admin, but a later run of the command would put the guide's value back.
+
+### Fiesta Factory Direct
+
 The Fiesta Factory Direct store is read weekly for which products it sells in which colors.
 Its `robots.txt` allows crawling the public catalog. The importer names itself in its user
 agent, pauses between pages, and saves every raw page under
@@ -183,25 +209,33 @@ fetching again.
 ```bash
 php artisan fiesta:import-ffd
 php artisan fiesta:import-ffd --snapshot=2026-09-26-initial
+php artisan fiesta:match-store-names
 php artisan fiesta:rule-listings
 php artisan fiesta:suggest-swatches
 ```
 
-Rulings are usually made on the **Review** tab, which works on a phone. A product name
-shows every color the store sold it in, with the catalog swatch once that color is mapped
-and retired colors muted. A color name shows how many products carry it. Both show a few
-of the store's own photos, loaded from the store's links. A name can be mapped to one of
-the catalog's colors or products, added as a new one, ignored, or skipped for now.
-Product names can also be ticked and added as new products in one go. Rulings already
-made can be undone. `fiesta:rule-listings` does the same from a terminal. Store color
-names are shown, and new colors saved, with each word capitalized.
+A store name that exactly matches a catalog color or product, ignoring case, is tied on
+every import without asking. A color name several eras share goes to the newest, since the
+store sells current production. `fiesta:match-store-names` does the same without fetching
+the store. A name the admin already ruled on is left alone.
+
+Whatever does not match waits at the top of Admin, Colors and Admin, Products, which work
+on a phone. A product name shows every color the store sold it in, with the catalog
+swatch once that color is tied and retired colors muted. A color name shows how many
+products carry it. Both show a few of the store's own photos, loaded from the store's
+links. A name can be tied to one of the catalog's colors or products, added as a new one,
+or ignored. Product names can also be ticked and added as new products in one go. Ties
+already made, including automatic ones, can be undone under "Already matched"; an undone
+exact match is tied again on the next import unless it is ruled another way.
+`fiesta:rule-listings` does the same from a terminal. Store color names are shown, and new
+colors saved, with each word capitalized.
 
 ### Product names follow the store
 
 Mapping a store product name to a catalog product renames the product to the store's
 wording, so Identify, Collection and the wishlist all use it. When several store names
 map to one product, the one on the most listings wins. A name already used by another
-product is never taken; the review screen says so and suggests merging.
+product is never taken; the admin screen says so and suggests merging.
 `fiesta:adopt-store-names` applies the rule to products mapped before it existed.
 
 Every product also keeps its spreadsheet name as an alias, keyed by line. The importers
@@ -214,11 +248,11 @@ What the store lists is a claim, not a catalog fact.
 - **Listings** hold one row per product and color the store shows, with the raw names, a
   retired flag, a link, and when it was first and last seen. Glassware, linens and other
   non-dinnerware are skipped, as are mixed-color sets. A single-color set still counts.
-- **Rulings** decide what a store name means. `fiesta:rule-listings` walks through
-  unruled color names and then product names, most listings first, and saves each answer
-  as it is given. A name maps to a catalog color or product, or is ignored. Reused color
-  names such as Cobalt are ruled one at a time, because the store name alone does not say
-  which era is meant. A new color takes only the name and years typed in.
+- **Rulings** decide what a store name means. Exact matches are made automatically; the
+  rest are the admin's. `fiesta:rule-listings` walks through unruled color names and then
+  product names, most listings first, and saves each answer as it is given. A name maps to
+  a catalog color or product, or is ignored. A new color takes only the name and years
+  typed in.
 - **Evidence** is recorded once both names on a listing are mapped. It confirms the
   variant and cites the listing. If a ruling changes, the evidence is withdrawn, and a
   variant left with no evidence and no owned piece goes back to unconfirmed.
@@ -236,8 +270,10 @@ The store's product images are kept only as links to the store. None are copied.
 
 `fiesta:suggest-swatches` estimates a swatch for each ruled color that has none. It reads
 up to five store photos of the glaze, ignores the white background and deep shadows, and
-takes the median color. Photos are read in memory and never stored. Suggestions wait on
-the Review tab and only change a color when accepted. One already accepted or dismissed
+takes the median color. Photos are read in memory and never stored. A suggestion shows on
+the color's page in Admin, Colors and only changes the color when used. With the color
+guide in place, every Fiesta color has a swatch, so suggestions only arise for a new color
+added without one. One already accepted or dismissed
 is not suggested again.
 
 Correcting the photos against existing swatches was tried and dropped. Measured on 11
@@ -305,9 +341,9 @@ holdings that point at them.
 | `components/Collection.jsx` | Filters plus the own/missing/wishlist toggle |
 | `components/Wishlist.jsx` | Open and found items, grail toggle, remove and reopen |
 | `components/VariantDetail.jsx` | The piece panel: add to collection, inline condition editing, and the wishlist card |
-| `components/Admin.jsx` | Admin only. Colors, store listings, products and members in one place |
-| `components/ColorAdmin.jsx` | A color's years and its "made in this color" checklist |
-| `components/Review.jsx` | Store listing rulings and suggested swatches |
+| `components/Admin.jsx` | Admin only. Colors, products and members in one place |
+| `components/ColorAdmin.jsx` | A color's swatch, years and "made in this color" checklist |
+| `components/StoreNames.jsx` | Store color or product names that did not match exactly, at the top of Admin, Colors and Products |
 | `components/Products.jsx` | Rename, merge and add products |
 | `components/RowActions.jsx` | Per-row editing of hex and owned pieces |
 | `components/Swatch.jsx` | Deliberately obvious placeholder where hex data is absent |
@@ -325,18 +361,18 @@ holdings that point at them.
   an any-color item still matches every plain color of the product.
 - **No password reset in the app.** A member who forgets their password has to ask the
   admin, who can reset it with `fiesta:make-user` on the server.
-- **Eleven colors have no hex.** Heather, Ivory, Light Green, Peacock, Red, Red (Orange
-  Red), Rose, Turquoise, Evergreen, Foundry and Linen render as dashed placeholders. The
-  51 that do have values are community sourced and approximate, not measured from the
-  pieces.
+- **Five colors have no hex.** Harlequin Red, Rose and Turquoise, and Riviera Ivory and
+  Light Green, render as dashed placeholders, since the color guide covers Fiesta only.
+  Every swatch is an approximation, not a measurement from the pieces.
 - **Value over time has a single date.** The spreadsheet carries none, so all 60
   observations are dated at import. The mechanism works and the data does not exercise it.
   No second date was invented to make it look better.
 - **Product coverage is bounded by the collection.** The 42 products come from owned
   pieces, so anything never owned, including covered onion soup and the syrup, is not in
   the catalog and cannot be identified.
-- **Six colors have no years,** and therefore no era, because the source embeds Fiesta's
-  ranges on the Riviera and Harlequin rows and copying them across would be fabrication.
+- **Five colors have no years,** and therefore no era: the Harlequin and Riviera colors,
+  because the source embeds Fiesta's ranges on those rows and copying them across would be
+  fabrication.
 - **Two product pairs are still unresolved.** `Nappy 8.5"` and `Nappy Bowl` may be one
   object. `Canniser, Small` and `Cannister, Large` are two sizes carrying two different
   misspellings. The merge and rename tools exist; the rulings have not been made.
@@ -346,8 +382,10 @@ holdings that point at them.
   inside a title only when the catalog or a ruling already knows its name. Colors the store
   offers as a product option are always picked up. The report lists skipped titles, so a
   new title-only color shows up there first.
-- **Suggested swatches only reach colors the store sells.** Vintage, Harlequin and
-  Riviera colors never appear there, so their missing swatches still need measuring from
-  real pieces.
-- **Accepted swatches live in the database only.** A catalog re-import rebuilds colors from
-  `database/seed-data/color-hex.csv`, so an accepted swatch worth keeping belongs there too.
+- **Swatches edited in Admin live in the database only.** Running
+  `fiesta:apply-color-guide` again puts the guide's Fiesta values back, and a catalog
+  re-import rebuilds the rest from `database/seed-data/color-hex.csv`.
+- **Most store products are not in the catalog yet.** After exact matching, about 75 of
+  the store's 80 product names still wait in Admin, Products, because the catalog's
+  products carry the spreadsheet's names. Until they are added or tied, their listings
+  cannot verify anything.

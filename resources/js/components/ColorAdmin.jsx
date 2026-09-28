@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import StoreNames from './StoreNames';
 import Swatch from './Swatch';
 
 const INPUT =
@@ -105,6 +106,35 @@ function SwatchField({ color, onSaved }) {
     );
 }
 
+/**
+ * A swatch estimated from store photos, made weekly for colors that have none.
+ * Nothing changes until it is used.
+ */
+function SuggestedSwatch({ suggestion, onDone }) {
+    const { post, loading, error } = useApi();
+
+    const act = async (action) => {
+        if (await post(`/api/swatch-suggestions/${suggestion.id}/${action}`)) onDone();
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-glaze-sun/15 px-3 py-2">
+            <span className="h-8 w-8 shrink-0 rounded-full ring-1 ring-black/15" style={{ backgroundColor: suggestion.hex }} />
+            <span className="flex-1 text-sm">
+                Suggested from {suggestion.photos_sampled} store {suggestion.photos_sampled === 1 ? 'photo' : 'photos'}:{' '}
+                <span className="font-mono">{suggestion.hex}</span>
+            </span>
+            <button onClick={() => act('accept')} disabled={loading} className={`${BUTTON} bg-glaze-ink text-glaze-cream`}>
+                Use it
+            </button>
+            <button onClick={() => act('dismiss')} disabled={loading} className={`${BUTTON} text-glaze-slate`}>
+                Dismiss
+            </button>
+            {error && <p className="w-full text-sm font-bold text-glaze-flame">{error}</p>}
+        </div>
+    );
+}
+
 function Checklist({ color }) {
     const { get, loading } = useApi();
     const { post, error } = useApi();
@@ -161,11 +191,16 @@ function Checklist({ color }) {
  */
 export default function ColorAdmin() {
     const { get } = useApi();
+    const { get: getSuggestions } = useApi();
     const [colors, setColors] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
     const [filter, setFilter] = useState('');
     const [selected, setSelected] = useState(null);
 
-    const load = useCallback(() => get('/api/colors').then((result) => setColors(result ?? [])), [get]);
+    const load = useCallback(() => {
+        get('/api/colors').then((result) => setColors(result ?? []));
+        getSuggestions('/api/swatch-suggestions').then((result) => setSuggestions(result ?? []));
+    }, [get, getSuggestions]);
 
     useEffect(() => {
         load();
@@ -178,59 +213,65 @@ export default function ColorAdmin() {
 
     const visible = colors.filter((c) => `${c.name} ${c.line.name}`.toLowerCase().includes(filter.toLowerCase()));
 
-    return (
-        <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
-            <section className={`space-y-2 ${selected ? 'hidden lg:block' : ''}`}>
-                <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Find a color" className={INPUT} />
-                <div className="overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white lg:max-h-[36rem]">
-                    {visible.map((c) => (
-                        <button
-                            key={c.id}
-                            onClick={() => setSelected(c)}
-                            className={`flex w-full items-center gap-3 border-b border-glaze-shell/70 px-3 py-2.5 text-left text-sm last:border-0 ${
-                                selected?.id === c.id ? 'bg-glaze-ink text-glaze-cream' : 'hover:bg-glaze-sun/15'
-                            }`}
-                        >
-                            <Swatch hex={c.hex} size="sm" />
-                            <span className="min-w-0 flex-1">
-                                <span className="block truncate font-bold">{c.name}</span>
-                                <span className={`block text-xs ${selected?.id === c.id ? 'text-glaze-cream/60' : 'text-glaze-slate'}`}>
-                                    {c.line.name} · {c.produced_label ?? 'years unknown'}
-                                </span>
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            </section>
+    const suggestion = selected ? suggestions.find((s) => s.color.id === selected.id) : null;
 
-            {selected ? (
-                <section className="space-y-5 rounded-2xl border-2 border-glaze-shell bg-white/70 p-4">
-                    <button
-                        onClick={() => setSelected(null)}
-                        className="flex items-center gap-2 rounded-full bg-glaze-shell px-4 py-2 text-sm font-bold text-glaze-slate lg:hidden"
-                    >
-                        <span aria-hidden="true">&larr;</span>
-                        All colors
-                    </button>
-                    <div className="flex items-center gap-3">
-                        <Swatch hex={selected.hex} size="lg" />
-                        <div>
-                            <h2 className="text-xl font-black leading-tight">{selected.name}</h2>
-                            <p className="text-sm text-glaze-slate">
-                                {selected.line.name} · {selected.produced_label ?? 'years unknown'}
-                                {selected.era && ` · ${selected.era.label}`}
-                            </p>
-                        </div>
+    return (
+        <div className="space-y-4">
+            <StoreNames kind="color" onChanged={load} />
+            <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
+                <section className={`space-y-2 ${selected ? 'hidden lg:block' : ''}`}>
+                    <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Find a color" className={INPUT} />
+                    <div className="overflow-y-auto rounded-2xl border-2 border-glaze-shell bg-white lg:max-h-[36rem]">
+                        {visible.map((c) => (
+                            <button
+                                key={c.id}
+                                onClick={() => setSelected(c)}
+                                className={`flex w-full items-center gap-3 border-b border-glaze-shell/70 px-3 py-2.5 text-left text-sm last:border-0 ${
+                                    selected?.id === c.id ? 'bg-glaze-ink text-glaze-cream' : 'hover:bg-glaze-sun/15'
+                                }`}
+                            >
+                                <Swatch hex={c.hex} size="sm" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate font-bold">{c.name}</span>
+                                    <span className={`block text-xs ${selected?.id === c.id ? 'text-glaze-cream/60' : 'text-glaze-slate'}`}>
+                                        {c.line.name} · {c.produced_label ?? 'years unknown'}
+                                    </span>
+                                </span>
+                            </button>
+                        ))}
                     </div>
-                    <SwatchField color={selected} onSaved={onSaved} />
-                    <Years color={selected} onSaved={onSaved} />
-                    <Checklist color={selected} />
                 </section>
-            ) : (
-                <p className="hidden rounded-2xl border-2 border-dashed border-glaze-shell px-4 py-8 text-center text-sm text-glaze-slate lg:block">
-                    Pick a color to correct its years or check off what it was made in.
-                </p>
-            )}
+
+                {selected ? (
+                    <section className="space-y-5 rounded-2xl border-2 border-glaze-shell bg-white/70 p-4">
+                        <button
+                            onClick={() => setSelected(null)}
+                            className="flex items-center gap-2 rounded-full bg-glaze-shell px-4 py-2 text-sm font-bold text-glaze-slate lg:hidden"
+                        >
+                            <span aria-hidden="true">&larr;</span>
+                            All colors
+                        </button>
+                        <div className="flex items-center gap-3">
+                            <Swatch hex={selected.hex} size="lg" />
+                            <div>
+                                <h2 className="text-xl font-black leading-tight">{selected.name}</h2>
+                                <p className="text-sm text-glaze-slate">
+                                    {selected.line.name} · {selected.produced_label ?? 'years unknown'}
+                                    {selected.era && ` · ${selected.era.label}`}
+                                </p>
+                            </div>
+                        </div>
+                        <SwatchField color={selected} onSaved={onSaved} />
+                        {suggestion && <SuggestedSwatch suggestion={suggestion} onDone={load} />}
+                        <Years color={selected} onSaved={onSaved} />
+                        <Checklist color={selected} />
+                    </section>
+                ) : (
+                    <p className="hidden rounded-2xl border-2 border-dashed border-glaze-shell px-4 py-8 text-center text-sm text-glaze-slate lg:block">
+                        Pick a color to set its swatch, correct its years or check off what it was made in.
+                    </p>
+                )}
+            </div>
         </div>
     );
 }

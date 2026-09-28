@@ -10,6 +10,7 @@ use App\Models\ExternalListing;
 use App\Models\Holding;
 use App\Models\Line;
 use App\Models\Product;
+use App\Models\ProductAlias;
 use App\Models\Variant;
 use App\Models\VariantEvidence;
 use App\Services\Import\ImportReport;
@@ -196,17 +197,39 @@ class FiestaFactoryDirectTest extends TestCase
         $this->assertTrue(Variant::where('color_id', $alias->color_id)->where('product_id', $this->heartPlate->id)->exists());
     }
 
+    public function test_names_that_exactly_match_are_tied_on_import_and_a_reused_color_goes_to_the_newest(): void
+    {
+        $this->fakeStore($this->products());
+        $this->artisan('fiesta:import-ffd')->assertSuccessful();
+
+        $tied = ColorAlias::pluck('color_id', 'external_key');
+
+        $this->assertSame($this->modernCobalt->id, $tied['cobalt']);
+        $this->assertSame($this->turquoise->id, $tied['turquoise']);
+        $this->assertCount(4, $tied);
+        $this->assertSame(0, app(ListingRulingService::class)->pendingColors(self::SOURCE)->count());
+    }
+
+    public function test_a_name_the_owner_already_ruled_on_is_not_retied(): void
+    {
+        app(ListingRulingService::class)->ignoreColor(self::SOURCE, 'cobalt');
+
+        $this->fakeStore($this->products());
+        $this->artisan('fiesta:import-ffd')->assertSuccessful();
+
+        $this->assertNull(ColorAlias::where('external_key', 'cobalt')->sole()->color_id);
+    }
+
     public function test_pending_names_rank_by_how_many_listings_they_unlock(): void
     {
         $this->fakeStore($this->products());
         $this->artisan('fiesta:import-ffd')->assertSuccessful();
 
-        $pending = app(ListingRulingService::class)->pendingColors(self::SOURCE);
+        $pending = app(ListingRulingService::class)->pendingProducts(self::SOURCE);
 
-        $this->assertSame(
-            ['lavender' => 2, 'turquoise' => 2, 'cobalt' => 1, 'foundry' => 1],
-            $pending->pluck('listings', 'name_key')->all()
-        );
+        $this->assertSame('9 inch heart plate', $pending->first()->name_key);
+        $this->assertSame(2, $pending->first()->listings);
+        $this->assertSame(5, $pending->count());
     }
 
     public function test_the_rulings_command_saves_answers_as_it_goes_and_stops_cleanly(): void
@@ -214,21 +237,22 @@ class FiestaFactoryDirectTest extends TestCase
         $this->fakeStore($this->products());
         $this->artisan('fiesta:import-ffd')->assertSuccessful();
 
+        // Every color in the fixture matches exactly, so only products are asked about.
         $options = [
-            'map', 'One of my colors',
-            'create', 'A color I need to add',
+            'map', 'One of my products',
+            'create', 'A product I need to add',
             'ignore', 'Ignore it',
             'later', 'Decide later',
             'stop', 'Stop for now',
         ];
 
         $this->artisan('fiesta:rule-listings')
-            ->expectsChoice('What is this color?', 'ignore', $options)
-            ->expectsChoice('What is this color?', 'stop', $options)
+            ->expectsChoice('What is this piece?', 'ignore', $options)
+            ->expectsChoice('What is this piece?', 'stop', $options)
             ->assertSuccessful();
 
-        $this->assertSame(1, ColorAlias::count());
-        $this->assertSame(3, app(ListingRulingService::class)->pendingColors(self::SOURCE)->count());
+        $this->assertSame(1, ProductAlias::count());
+        $this->assertSame(4, app(ListingRulingService::class)->pendingProducts(self::SOURCE)->count());
     }
 
     private function resolve(): void

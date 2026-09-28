@@ -89,4 +89,9 @@ return response()->json(['id' => $product->id, 'name' => $product->name]);
 - If catalog data is needed and has not been provided, stop and ask.
 - Outside sources such as store listings are claims, not reference data. They are stored
   as listings with a citation and only reach the catalog through a ruling the owner made.
-  Never map a source's names to catalog products or colors automatically.
+  The one exception the owner approved: a store name that exactly matches a catalog color
+  or product name (ignoring case) is tied automatically, and a color name used by several
+  eras goes to the newest. Never tie a name that is only similar.
+- fiesta-color-guide.com is the owner's chosen source for Fiesta swatches and production
+  years, kept in `database/seed-data/fiesta-color-guide.csv`. Do not take hex values or
+  years from anywhere else without asking.

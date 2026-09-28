@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import ColorAdmin from './ColorAdmin';
-import Review from './Review';
 import Products from './Products';
 import Members from './Members';
 
 const SECTIONS = [
     { key: 'colors', label: 'Colors' },
-    { key: 'store', label: 'Store listings' },
     { key: 'products', label: 'Products' },
     { key: 'members', label: 'Members' },
 ];
@@ -34,7 +32,6 @@ export default function Admin() {
             </div>
 
             {section === 'colors' && <ColorAdmin />}
-            {section === 'store' && <Review />}
             {section === 'products' && <Products />}
             {section === 'members' && <Members />}
         </div>

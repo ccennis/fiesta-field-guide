@@ -17,7 +17,8 @@ use App\Services\Import\ImportReport;
 use Illuminate\Support\Collection;
 
 /**
- * Applies the owner's name rulings to a source's listings.
+ * Applies the owner's name rulings to a source's listings, after tying any new
+ * store names that exactly match a catalog name.
  *
  * A listing resolves to a variant only when both its product name and its color
  * name are mapped. A resolved listing is recorded as evidence and confirms the
@@ -32,6 +33,10 @@ class ListingResolver extends BaseService
 
     public function resolve(ListingSource $source, ImportReport $report): void
     {
+        $tied = $this->rulings->autoMatch($source);
+        $report->set('color names matched by exact name', $tied['colors']);
+        $report->set('product names matched by exact name', $tied['products']);
+
         $newlyConfirmed = $this->apply($source, ExternalListing::where('source', $source)->get(), $report);
 
         $this->reportTotals($source, $newlyConfirmed, $report);

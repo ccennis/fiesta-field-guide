@@ -47,6 +47,46 @@ class ListingRulingService extends BaseService
         return $this->pending($source, 'product', ProductAlias::class);
     }
 
+    /**
+     * Tie every store name that exactly matches a catalog name, which the owner
+     * chose to have happen without asking. A color name used by several eras
+     * goes to the newest, since the store sells current production. Names
+     * already ruled on, including ones the owner untied, are left alone.
+     *
+     * @return array{colors: int, products: int} names tied
+     */
+    public function autoMatch(ListingSource $source): array
+    {
+        $fiesta = $this->fiesta();
+        $tied = ['colors' => 0, 'products' => 0];
+
+        $colors = Color::where('line_id', $fiesta->id)
+            ->orderByDesc('produced_from')
+            ->get()
+            ->groupBy(fn (Color $color) => mb_strtolower($color->name))
+            ->map(fn ($group) => $group->first());
+
+        foreach ($this->pending($source, 'color', ColorAlias::class) as $name) {
+            if ($color = $colors->get($name->name_key)) {
+                $this->mapColor($source, $name->name_key, $color);
+                $tied['colors']++;
+            }
+        }
+
+        $products = Product::where('line_id', $fiesta->id)
+            ->get()
+            ->keyBy(fn (Product $product) => mb_strtolower($product->name));
+
+        foreach ($this->pending($source, 'product', ProductAlias::class) as $name) {
+            if ($product = $products->get($name->name_key)) {
+                $this->mapProduct($source, $name->name_key, $product);
+                $tied['products']++;
+            }
+        }
+
+        return $tied;
+    }
+
     public function mapColor(ListingSource $source, string $key, Color $color): ColorAlias
     {
         return ColorAlias::updateOrCreate(
