@@ -70,8 +70,6 @@
                     <tr>
                         <td align="center" style="padding:8px 16px 0;">
                             <p style="margin:0; font-family:Helvetica, Arial, sans-serif; font-size:12px; line-height:1.5; color:#9A918A;">
-                                You got this because {{ $adminName }} typed your address into Fiesta Field Guide.
-                                If it is not for you, just ignore it and the link will expire on its own.<br>
                                 Not affiliated with Fiesta Tableware Company or Homer Laughlin.
                             </p>
                         </td>

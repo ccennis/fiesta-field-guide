@@ -58,7 +58,7 @@ QUEUE_CONNECTION=sync
 MAIL_MAILER=smtp
 MAIL_SCHEME=smtps
 MAIL_HOST=smtp.resend.com
-MAIL_PORT=465
+MAIL_PORT=2465
 MAIL_USERNAME=resend
 MAIL_PASSWORD=the-resend-api-key-from-1password
 MAIL_FROM_ADDRESS=hello@fiestafieldguide.com
@@ -70,16 +70,22 @@ has to really send. It goes through Resend's SMTP server, which needs no extra p
 The username is literally `resend` and the password is the API key. The key lives in
 1Password and is pasted into the Forge environment, never committed.
 
+The port is 2465 rather than the usual 465 because DigitalOcean blocks outgoing mail
+ports 25, 465 and 587 on droplets, and those connections simply time out. Resend listens
+on 2465 for exactly this. After changing any mail setting, run `php8.4 artisan
+config:cache` as `fiesta`, since the deploy caches the configuration.
+
 `fiestafieldguide.com` has to be added and verified as a domain in Resend before it will
 send from `hello@fiestafieldguide.com`. Resend shows the DNS records to add, usually an
 MX and a TXT record on a `send` subdomain and a DKIM TXT record. With `MAIL_MAILER=log`
 people can still sign up, but the email is only written to the log and they cannot get
 past the "check your email" screen.
 
-After saving the environment, send a test from the server:
+To send yourself a test invite email, sign in as `fiesta` and run this from the site's
+`current` folder. The link in it points to `/invite/test`, which is not a real invite:
 
 ```bash
-ssh -t fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan tinker --execute=\"Illuminate\\Support\\Facades\\Mail::raw('Test from Fiesta Field Guide', fn (\\\$m) => \\\$m->to('you@example.com')->subject('Mail test'));\""
+php8.4 artisan tinker --execute="Illuminate\Support\Facades\Notification::route('mail', 'you@example.com')->notify(new App\Notifications\InvitationNotification(url('/invite/test'), 'Caroline', 7));"
 ```
 
 The database path points into the shared `storage` folder. Zero-downtime deploys build
