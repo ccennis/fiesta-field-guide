@@ -29,9 +29,16 @@ the collection; there are no other steps. Locally, confirmation emails are writt
 `storage/logs/laravel.log` rather than sent.
 
 The API is loaded under the `web` middleware group, so it uses the session, cookies and
-CSRF protection of a normal Laravel page. Every endpoint except sign-in, sign-up and the
-invite link check requires a signed-in user with a confirmed email. Sign-in and sign-up
+CSRF protection of a normal Laravel page. Every endpoint except sign-in, sign-up, password
+reset and the invite link check requires a signed-in user with a confirmed email. Those
 are limited to 5 attempts a minute, and invite links to 10.
+
+"Forgot your password?" on the sign-in page emails a reset link that works for an hour.
+The answer is the same whether or not the address has an account, and a member whose
+access was removed is not sent one. The link carries only the token; the page asks for
+the email again. Setting a new password ends every other session, and counts as
+confirming the email, since the link reached that inbox. Mail goes through Resend's SMTP
+server; DEPLOY.md has the settings.
 
 ## Admin and members
 
@@ -316,6 +323,9 @@ All responses use `{ success, message, data, errors }`.
 | POST | `/api/members/{id}/enable` | Restore it, admin only |
 | POST | `/api/register` | Sign up, public |
 | POST | `/api/email/resend` | Send the confirmation email again, before confirming |
+| POST | `/api/forgot-password` | `email`; send a reset link, public |
+| POST | `/api/reset-password` | `token`, `email`, `password`; set a new password, public |
+| GET | `/reset-password/{token}` | The link in the reset email, which opens the app |
 | GET | `/email/verify/{id}/{hash}` | The signed link in the confirmation email |
 | GET | `/api/invites/{token}` | Check an invite link, public |
 | POST | `/api/invites/{token}/accept` | Join with an invite link, public |
@@ -350,6 +360,8 @@ holdings that point at them.
 | `components/Members.jsx` | Admin only. Invite links, and everyone's access |
 | `components/SignUp.jsx` | Open sign-up |
 | `components/ConfirmEmail.jsx` | What someone sees until they confirm their email |
+| `components/ForgotPassword.jsx` | Asks for a reset link |
+| `components/ResetPassword.jsx` | Where the reset link lands |
 | `components/AcceptInvite.jsx` | Where an invite link lands |
 | `hooks/useApi.js` | `get` `post` `put` `patch` `destroy`, plus `fieldErrors` from validation |
 | `hooks/useUser.js` | The signed-in user, so screens can hide admin-only controls |
@@ -359,8 +371,6 @@ holdings that point at them.
 - **Any-color items cannot list their colors.** Which products were made in which colors
   is only known where the admin has ticked the checklist or a store listing shows it, so
   an any-color item still matches every plain color of the product.
-- **No password reset in the app.** A member who forgets their password has to ask the
-  admin, who can reset it with `fiesta:make-user` on the server.
 - **Five colors have no hex.** Harlequin Red, Rose and Turquoise, and Riviera Ivory and
   Light Green, render as dashed placeholders, since the color guide covers Fiesta only.
   Every swatch is an approximation, not a measurement from the pieces.

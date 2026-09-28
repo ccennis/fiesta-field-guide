@@ -7,6 +7,8 @@ import Wishlist from './Wishlist';
 import Admin from './Admin';
 import Login from './Login';
 import SignUp from './SignUp';
+import ForgotPassword from './ForgotPassword';
+import ResetPassword from './ResetPassword';
 import ConfirmEmail from './ConfirmEmail';
 import AcceptInvite from './AcceptInvite';
 import InstallHint from './InstallHint';
@@ -23,6 +25,8 @@ const TABS = [
 ];
 
 const inviteToken = () => window.location.pathname.match(/^\/invite\/([^/]+)$/)?.[1] ?? null;
+
+const resetToken = () => window.location.pathname.match(/^\/reset-password\/([^/]+)$/)?.[1] ?? null;
 
 const VERIFIED_NOTICES = {
     1: 'Your email is confirmed. Sign in to start.',
@@ -53,8 +57,10 @@ export default function App() {
     const [user, setUser] = useState(undefined);
     const [tab, setTab] = useState('browse');
     const [token, setToken] = useState(inviteToken);
-    const [signingUp, setSigningUp] = useState(false);
-    const [notice] = useState(verifiedNotice);
+    const [reset, setReset] = useState(resetToken);
+    // Which signed-out screen shows: 'login', 'signup' or 'forgot'.
+    const [screen, setScreen] = useState('login');
+    const [notice, setNotice] = useState(verifiedNotice);
     const { get: getMe } = useApi();
     const { data: summary, get } = useApi();
     const { post } = useApi();
@@ -84,18 +90,34 @@ export default function App() {
         setUser(null);
     };
 
+    const resetDone = () => {
+        window.history.replaceState(null, '', '/');
+        setReset(null);
+        setUser(null);
+        setScreen('login');
+        setNotice('Your password is changed. Sign in with it now.');
+    };
+
     if (user === undefined) return null;
+    if (reset) return <ResetPassword token={reset} onDone={resetDone} />;
     if (user === null && token) return <AcceptInvite token={token} onJoined={setUser} />;
-    if (user === null && signingUp) return (
+    if (user === null && screen === 'signup') {
+        return (
             <SignUp
                 onSignedUp={(newUser) => {
-                    setSigningUp(false);
+                    setScreen('login');
                     setUser(newUser);
                 }}
-                onSignIn={() => setSigningUp(false)}
+                onSignIn={() => setScreen('login')}
             />
         );
-    if (user === null) return <Login onSignedIn={setUser} onSignUp={() => setSigningUp(true)} notice={notice} />;
+    }
+    if (user === null && screen === 'forgot') return <ForgotPassword onBack={() => setScreen('login')} />;
+    if (user === null) {
+        return (
+            <Login onSignedIn={setUser} onSignUp={() => setScreen('signup')} onForgot={() => setScreen('forgot')} notice={notice} />
+        );
+    }
     if (!user.email_verified) return <ConfirmEmail user={user} onChecked={setUser} onSignOut={signOut} />;
 
     const tabs = TABS.filter((t) => user.is_admin || !t.adminOnly);

@@ -56,20 +56,31 @@ CACHE_STORE=database
 QUEUE_CONNECTION=sync
 
 MAIL_MAILER=smtp
-MAIL_HOST=the-mail-service-smtp-host
-MAIL_PORT=587
-MAIL_USERNAME=from-1password
-MAIL_PASSWORD=from-1password
+MAIL_SCHEME=smtps
+MAIL_HOST=smtp.resend.com
+MAIL_PORT=465
+MAIL_USERNAME=resend
+MAIL_PASSWORD=the-resend-api-key-from-1password
 MAIL_FROM_ADDRESS=hello@fiestafieldguide.com
 MAIL_FROM_NAME="Fiesta Field Guide"
 ```
 
-Sign-up sends a confirmation email, so mail has to really send. Any service with SMTP
-works, such as Postmark, Resend or Amazon SES, and SMTP needs no extra package. The
-sending domain has to be verified with that service, which means adding the DNS records
-it gives you. The credentials live in 1Password and are pasted into the Forge
-environment, never committed. With `MAIL_MAILER=log` people can still sign up, but the
-email is only written to the log and they cannot get past the "check your email" screen.
+Sign-up sends a confirmation email and "Forgot your password?" sends a reset link, so mail
+has to really send. It goes through Resend's SMTP server, which needs no extra package.
+The username is literally `resend` and the password is the API key. The key lives in
+1Password and is pasted into the Forge environment, never committed.
+
+`fiestafieldguide.com` has to be added and verified as a domain in Resend before it will
+send from `hello@fiestafieldguide.com`. Resend shows the DNS records to add, usually an
+MX and a TXT record on a `send` subdomain and a DKIM TXT record. With `MAIL_MAILER=log`
+people can still sign up, but the email is only written to the log and they cannot get
+past the "check your email" screen.
+
+After saving the environment, send a test from the server:
+
+```bash
+ssh -t fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan tinker --execute=\"Illuminate\\Support\\Facades\\Mail::raw('Test from Fiesta Field Guide', fn (\\\$m) => \\\$m->to('you@example.com')->subject('Mail test'));\""
+```
 
 The database path points into the shared `storage` folder. Zero-downtime deploys build
 every release in a fresh folder, and only `storage` and `.env` carry across. A database
