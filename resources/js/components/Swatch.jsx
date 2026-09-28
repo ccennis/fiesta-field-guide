@@ -25,7 +25,7 @@ function ringColor(hex) {
     });
     const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
-    return luminance > 0.6 ? 'rgba(0, 0, 0, 0.22)' : 'rgba(255, 255, 255, 0.8)';
+    return luminance > 0.6 ? 'rgba(0, 0, 0, 0.14)' : 'rgba(255, 255, 255, 0.5)';
 }
 
 function plateRings(hex, size) {
