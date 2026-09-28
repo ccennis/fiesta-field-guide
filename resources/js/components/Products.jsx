@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import StoreNames from './StoreNames';
 
 const INPUT =
     'rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm focus:border-glaze-lagoon focus:outline-none';
@@ -133,6 +134,8 @@ export default function Products() {
 
     return (
         <div className="space-y-4">
+            <StoreNames kind="product" onChanged={refresh} />
+
             <div className="rounded-2xl border-2 border-glaze-shell bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-end gap-4">
                     <label className="flex flex-col gap-1">

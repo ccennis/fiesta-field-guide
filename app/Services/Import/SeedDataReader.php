@@ -176,6 +176,41 @@ class SeedDataReader extends BaseService
     }
 
     /**
+     * Every Fiesta color from fiesta-color-guide.com, which the owner chose as
+     * the source for swatches and production years. `catalog_name` is set where
+     * the catalog calls the color something else. Returns null when absent.
+     *
+     * @return ?array<int, array{row: int, name: string, catalog_name: string, produced_from: int, produced_to: ?int, hex: string}>
+     */
+    public function colorGuideRows(): ?array
+    {
+        if (! is_readable(database_path('seed-data/fiesta-color-guide.csv'))) {
+            return null;
+        }
+
+        $rows = [];
+
+        foreach ($this->read('fiesta-color-guide.csv', $header) as $number => $record) {
+            $record = array_pad($record, 5, '');
+
+            if (trim($record[0]) === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'row' => $number,
+                'name' => trim($record[0]),
+                'catalog_name' => trim($record[1]) !== '' ? trim($record[1]) : trim($record[0]),
+                'produced_from' => (int) trim($record[2]),
+                'produced_to' => ctype_digit(trim($record[3])) ? (int) trim($record[3]) : null,
+                'hex' => trim($record[4]),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
      * Applied decorations, supplied by the owner.
      *
      * `source_name` is the string as it appears in the collection export; the
