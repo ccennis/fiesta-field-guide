@@ -177,7 +177,7 @@ class HoldingImporter extends BaseService
 
     private function buildIndexes(): void
     {
-        $this->ownerId = User::owner()?->id;
+        $this->ownerId = User::admin()?->id;
 
         foreach (Color::all() as $color) {
             $this->colors[$this->colorKey($color->line_id, $color->name, $color->produced_from)] = $color;
@@ -449,10 +449,12 @@ class HoldingImporter extends BaseService
         $owned = $this->ownersRows(Holding::query())->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
         $open = $this->ownersRows(WishlistItem::open())->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
 
-        // A variant the store evidences stays confirmed; only a confirmation
-        // that rested on the qty 0 row itself is taken back.
+        // A variant the store evidences, or the owner confirmed by hand, stays
+        // confirmed; only a confirmation that rested on the qty 0 row itself is
+        // taken back.
         $confirmed = Variant::whereIn('id', $variantIds)
             ->where('existence', VariantExistence::Confirmed)
+            ->whereNull('confirmed_by_owner_at')
             ->doesntHave('evidence')
             ->pluck('id')
             ->flip();

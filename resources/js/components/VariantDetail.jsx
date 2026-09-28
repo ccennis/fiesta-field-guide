@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
 import Swatch from './Swatch';
 
@@ -125,23 +125,42 @@ function WishlistCard({ variant, item, onChange }) {
     );
 }
 
-export default function VariantDetail({ variantId }) {
+/**
+ * `onChanged` tells the screen that opened the piece that it was added to the
+ * collection or the wishlist, so its own counts can catch up.
+ */
+export default function VariantDetail({ variantId, onChanged }) {
     const { data: variant, loading, error, get } = useApi();
     const { patch } = useApi();
+    const { post: postHolding, loading: adding, error: addError } = useApi();
     const [holdings, setHoldings] = useState([]);
     const [wishlistItem, setWishlistItem] = useState(null);
 
+    const load = useCallback(() => {
+        get(`/api/variants/${variantId}`).then((v) => {
+            setHoldings(v?.holdings ?? []);
+            setWishlistItem(v?.wishlist_item ?? null);
+        });
+    }, [get, variantId]);
+
     useEffect(() => {
-        if (variantId) {
-            get(`/api/variants/${variantId}`).then((v) => {
-                setHoldings(v?.holdings ?? []);
-                setWishlistItem(v?.wishlist_item ?? null);
-            });
+        if (variantId) load();
+    }, [variantId, load]);
+
+    const addPiece = async () => {
+        if (await postHolding('/api/holdings', { variant_id: variantId })) {
+            load();
+            onChanged?.();
         }
-    }, [variantId, get]);
+    };
+
+    const onWishlistChange = (item) => {
+        setWishlistItem(item);
+        onChanged?.();
+    };
 
     if (!variantId) return null;
-    if (loading) return <p className="text-sm text-glaze-slate">Loading...</p>;
+    if (loading && !variant) return <p className="text-sm text-glaze-slate">Loading...</p>;
     if (error) return <p className="text-sm text-glaze-flame">{error}</p>;
     if (!variant) return null;
 
@@ -301,17 +320,26 @@ export default function VariantDetail({ variantId }) {
                     <p className="text-sm font-bold text-glaze-slate">No — you do not have this one.</p>
                 )}
 
-                {variant.owner && (
+                <button
+                    onClick={addPiece}
+                    disabled={adding}
+                    className="mt-2 rounded-full bg-glaze-lagoon px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                    {owned > 0 ? 'Add another to my collection' : 'Add to my collection'}
+                </button>
+                {addError && <p className="mt-1 text-sm text-glaze-flame">{addError}</p>}
+
+                {variant.admin && (
                     <p className="mt-2 text-sm text-glaze-slate">
-                        {variant.owner.count > 0
-                            ? `${variant.owner.name} has ${variant.owner.count}.`
-                            : `${variant.owner.name} does not have one.`}
+                        {variant.admin.count > 0
+                            ? `${variant.admin.name} has ${variant.admin.count}.`
+                            : `${variant.admin.name} does not have one.`}
                     </p>
                 )}
             </Card>
 
             <Card title="On your wishlist?">
-                <WishlistCard variant={variant} item={wishlistItem} onChange={setWishlistItem} />
+                <WishlistCard variant={variant} item={wishlistItem} onChange={onWishlistChange} />
             </Card>
         </div>
     );

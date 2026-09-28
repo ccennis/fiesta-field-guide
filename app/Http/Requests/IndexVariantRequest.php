@@ -36,7 +36,13 @@ class IndexVariantRequest extends FormRequest
             'owned' => 'sometimes|boolean',
             'decorated' => 'sometimes|boolean',
             'wishlisted' => 'sometimes|boolean',
-            'collection' => ['sometimes', Rule::enum(CollectionView::class)],
+            // Only invited friends may look at the admin's collection.
+            'collection' => [
+                'sometimes',
+                $this->user()?->canSeeAdminCollection()
+                    ? Rule::enum(CollectionView::class)
+                    : Rule::in([CollectionView::Mine->value]),
+            ],
             'per_page' => 'sometimes|integer|min:1|max:200',
         ];
     }

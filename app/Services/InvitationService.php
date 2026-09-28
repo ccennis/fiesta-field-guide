@@ -14,7 +14,7 @@ use RuntimeException;
 
 /**
  * Single-use invite links. The token is shown once, when the link is made, and
- * only its hash is kept. A link lets exactly one person join as a tester.
+ * only its hash is kept. A link lets exactly one person join as a member.
  */
 class InvitationService extends BaseService
 {
@@ -23,14 +23,14 @@ class InvitationService extends BaseService
     /**
      * @return array{invitation: Invitation, link: string}
      */
-    public function create(User $owner, ?string $note): array
+    public function create(User $admin, ?string $note): array
     {
         $token = Str::random(40);
 
         $invitation = Invitation::create([
             'token_hash' => Invitation::hashToken($token),
             'note' => $note,
-            'created_by' => $owner->id,
+            'created_by' => $admin->id,
             'expires_at' => now()->addDays(self::DAYS_VALID),
         ]);
 
@@ -56,8 +56,10 @@ class InvitationService extends BaseService
     }
 
     /**
-     * Create the tester and sign them in. The row is locked while it is used,
-     * so a link opened twice at once still makes only one account.
+     * Create the member and sign them in. An invited friend may see the
+     * admin's collection, and skips confirming their email, since the admin
+     * sent the link to them directly. The row is locked while it is used, so a
+     * link opened twice at once still makes only one account.
      *
      * @param  array{name: string, email: string, password: string}  $data
      */
@@ -77,8 +79,10 @@ class InvitationService extends BaseService
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
-                'role' => UserRole::Tester,
+                'role' => UserRole::Member,
+                'sees_admin_collection' => true,
             ]);
+            $user->forceFill(['email_verified_at' => now()])->save();
 
             $invitation->update(['accepted_at' => now(), 'accepted_by' => $user->id]);
 

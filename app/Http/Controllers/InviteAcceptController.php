@@ -24,7 +24,7 @@ class InviteAcceptController extends Controller
             return $this->error('This invite link has expired or has already been used.', 404);
         }
 
-        return $this->success(['owner_name' => User::owner()?->name], 'This invite link is ready to use.');
+        return $this->success(['admin_name' => User::admin()?->name], 'This invite link is ready to use.');
     }
 
     public function accept(AcceptInvitationRequest $request, string $token): JsonResponse

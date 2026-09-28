@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'disabled_at'])]
+#[Fillable(['name', 'email', 'password', 'role', 'disabled_at', 'sees_admin_collection'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
@@ -22,14 +22,23 @@ class User extends Authenticatable
     /**
      * The one account that keeps the catalog, or null before it exists.
      */
-    public static function owner(): ?self
+    public static function admin(): ?self
     {
-        return static::where('role', UserRole::Owner)->orderBy('id')->first();
+        return static::where('role', UserRole::Admin)->orderBy('id')->first();
     }
 
-    public function isOwner(): bool
+    public function isAdmin(): bool
     {
-        return $this->role === UserRole::Owner;
+        return $this->role === UserRole::Admin;
+    }
+
+    /**
+     * Friends who joined by invite may look at the admin's collection. People
+     * who signed up on their own may not.
+     */
+    public function canSeeAdminCollection(): bool
+    {
+        return $this->isAdmin() || $this->sees_admin_collection;
     }
 
     public function isDisabled(): bool
@@ -59,6 +68,7 @@ class User extends Authenticatable
             'disabled_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'sees_admin_collection' => 'boolean',
         ];
     }
 }

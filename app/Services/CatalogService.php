@@ -154,7 +154,7 @@ class CatalogService extends BaseService
     /**
      * The in-shop answer for one variant: what it is, what is known about its
      * rarity, what it is worth, whether the viewer owns one, and whether it is
-     * on their wishlist. A tester also sees how many the owner has.
+     * on their wishlist. An invited friend also sees how many the admin has.
      */
     public function identify(Variant $variant, User $viewer): Variant
     {
@@ -167,11 +167,10 @@ class CatalogService extends BaseService
         $variant->setRelation('valueHistory', $this->valuationService->history($variant));
         $variant->setRelation('wishlistMatch', $this->wishlistService->matchFor($variant, $viewer));
 
-        $owner = User::owner();
-
-        if (! $viewer->isOwner()) {
-            $variant->setAttribute('owner_name', $owner?->name);
-            $variant->setAttribute('owner_count', $variant->holdings()->where(fn (Builder $holdings) => $this->ownedBy($holdings, $owner))->count());
+        if (! $viewer->isAdmin() && $viewer->canSeeAdminCollection()) {
+            $admin = User::admin();
+            $variant->setAttribute('admin_name', $admin?->name);
+            $variant->setAttribute('admin_count', $variant->holdings()->where(fn (Builder $holdings) => $this->ownedBy($holdings, $admin))->count());
         }
 
         return $variant;
@@ -214,17 +213,17 @@ class CatalogService extends BaseService
     }
 
     /**
-     * Whose pieces a collection view counts. Testers may look at the owner's
-     * collection; the owner's own view is always theirs.
+     * Whose pieces a collection view counts. Invited friends may look at the
+     * admin's collection; IndexVariantRequest refuses anyone else who asks.
      */
     private function collector(User $viewer, CollectionView $view): ?User
     {
-        return $view === CollectionView::Owner ? User::owner() : $viewer;
+        return $view === CollectionView::Admin ? User::admin() : $viewer;
     }
 
     /**
-     * Constrain holdings to one person's. Before any owner account exists, the
-     * imported pieces have none, and they are the owner's.
+     * Constrain holdings to one person's. Before any admin account exists, the
+     * imported pieces have none, and they are the admin's.
      */
     private function ownedBy(Builder $holdings, ?User $collector): Builder
     {

@@ -1,32 +1,44 @@
 import { useEffect, useState } from 'react';
 import { UNAUTHENTICATED, useApi } from '../hooks/useApi';
 import { UserContext } from '../hooks/useUser';
-import Identify from './Identify';
+import Browse from './Browse';
 import Collection from './Collection';
-import Products from './Products';
 import Wishlist from './Wishlist';
-import Review from './Review';
-import Testers from './Testers';
+import Admin from './Admin';
 import Login from './Login';
+import SignUp from './SignUp';
+import ConfirmEmail from './ConfirmEmail';
 import AcceptInvite from './AcceptInvite';
 import InstallHint from './InstallHint';
 
 /**
- * `ownerOnly` tabs change the shared catalog or who can use the app, and are
- * hidden from testers. The server refuses those requests from testers too.
+ * The admin tab changes the shared catalog and who can use the app, so it is
+ * hidden from members. The server refuses those requests from members too.
  */
 const TABS = [
-    { key: 'identify', label: 'Identify a piece', short: 'Identify', mobile: true },
-    { key: 'collection', label: 'Collection', short: 'Collection', mobile: true },
-    { key: 'wishlist', label: 'Wishlist', short: 'Wishlist', mobile: true },
-    { key: 'review', label: 'Review', short: 'Review', mobile: true, ownerOnly: true },
-    { key: 'products', label: 'Products', short: 'Products', mobile: false, ownerOnly: true },
-    { key: 'testers', label: 'Testers', short: 'Testers', mobile: false, ownerOnly: true },
+    { key: 'browse', label: 'Browse', short: 'Browse' },
+    { key: 'collection', label: 'My collection', short: 'Collection' },
+    { key: 'wishlist', label: 'My wishlist', short: 'Wishlist' },
+    { key: 'admin', label: 'Admin', short: 'Admin', adminOnly: true },
 ];
 
-const isPhone = () => window.matchMedia('(max-width: 767px)').matches;
-
 const inviteToken = () => window.location.pathname.match(/^\/invite\/([^/]+)$/)?.[1] ?? null;
+
+const VERIFIED_NOTICES = {
+    1: 'Your email is confirmed. Sign in to start.',
+    0: 'That confirmation link did not work. Sign in and ask for a new one.',
+};
+
+/**
+ * The confirmation email sends people back with ?verified=1 or 0. Read it
+ * once and take it off the address.
+ */
+const verifiedNotice = () => {
+    const value = new URLSearchParams(window.location.search).get('verified');
+    if (value === null) return null;
+    window.history.replaceState(null, '', '/');
+    return VERIFIED_NOTICES[value] ?? null;
+};
 
 function Stat({ value, label, tone }) {
     return (
@@ -39,8 +51,10 @@ function Stat({ value, label, tone }) {
 
 export default function App() {
     const [user, setUser] = useState(undefined);
-    const [tab, setTab] = useState(() => (isPhone() ? 'identify' : 'collection'));
+    const [tab, setTab] = useState('browse');
     const [token, setToken] = useState(inviteToken);
+    const [signingUp, setSigningUp] = useState(false);
+    const [notice] = useState(verifiedNotice);
     const { get: getMe } = useApi();
     const { data: summary, get } = useApi();
     const { post } = useApi();
@@ -54,7 +68,7 @@ export default function App() {
     }, [getMe]);
 
     useEffect(() => {
-        if (user) get('/api/collection/summary');
+        if (user?.email_verified) get('/api/collection/summary');
     }, [user, get]);
 
     // Someone already signed in who opens an invite link has no use for it.
@@ -72,9 +86,19 @@ export default function App() {
 
     if (user === undefined) return null;
     if (user === null && token) return <AcceptInvite token={token} onJoined={setUser} />;
-    if (user === null) return <Login onSignedIn={setUser} />;
+    if (user === null && signingUp) return (
+            <SignUp
+                onSignedUp={(newUser) => {
+                    setSigningUp(false);
+                    setUser(newUser);
+                }}
+                onSignIn={() => setSigningUp(false)}
+            />
+        );
+    if (user === null) return <Login onSignedIn={setUser} onSignUp={() => setSigningUp(true)} notice={notice} />;
+    if (!user.email_verified) return <ConfirmEmail user={user} onChecked={setUser} onSignOut={signOut} />;
 
-    const tabs = TABS.filter((t) => user.is_owner || !t.ownerOnly);
+    const tabs = TABS.filter((t) => user.is_admin || !t.adminOnly);
 
     return (
         <UserContext.Provider value={user}>
@@ -110,13 +134,8 @@ export default function App() {
                             <div className="order-last flex items-center gap-4 text-xs font-bold text-glaze-cream/60 md:order-none">
                                 <span className="text-glaze-cream/80">
                                     {user.name}
-                                    {!user.is_owner && ' · beta tester'}
+                                    {user.is_admin && ' · admin'}
                                 </span>
-                                {user.is_owner && (
-                                    <button onClick={() => setTab('testers')} className="hover:text-glaze-cream md:hidden">
-                                        Testers
-                                    </button>
-                                )}
                                 <button onClick={signOut} className="hover:text-glaze-cream">
                                     Sign out
                                 </button>
@@ -165,12 +184,10 @@ export default function App() {
                 <InstallHint />
 
                 <main className="mx-auto max-w-[1600px] px-4 py-4 md:px-6 md:py-6">
-                    {tab === 'identify' && <Identify />}
+                    {tab === 'browse' && <Browse onChanged={() => get('/api/collection/summary')} />}
                     {tab === 'collection' && <Collection />}
                     {tab === 'wishlist' && <Wishlist />}
-                    {tab === 'review' && user.is_owner && <Review />}
-                    {tab === 'products' && user.is_owner && <Products />}
-                    {tab === 'testers' && user.is_owner && <Testers />}
+                    {tab === 'admin' && user.is_admin && <Admin />}
                 </main>
 
                 <footer className="mx-auto max-w-[1600px] px-4 pb-6 text-xs text-glaze-slate/70 md:px-6">
@@ -178,7 +195,7 @@ export default function App() {
                 </footer>
 
                 <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t-2 border-glaze-shell bg-glaze-cream pb-[env(safe-area-inset-bottom)] md:hidden">
-                    {tabs.filter((t) => t.mobile).map((t) => (
+                    {tabs.map((t) => (
                         <button
                             key={t.key}
                             onClick={() => setTab(t.key)}

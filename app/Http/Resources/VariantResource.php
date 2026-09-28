@@ -37,6 +37,7 @@ class VariantResource extends JsonResource
                     : null),
             ],
             'owned_count' => $this->whenCounted('holdings'),
+            'wishlisted' => $this->whenHas('wishlisted'),
             'value' => $this->relationLoaded('resolvedValue') && $this->resolvedValue
                 ? new ValueObservationResource($this->resolvedValue)
                 : null,

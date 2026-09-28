@@ -14,11 +14,13 @@ function xsrfToken() {
 export function useApi() {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const request = useCallback(async (url, options = {}) => {
         setLoading(true);
         setError(null);
+        setFieldErrors(null);
 
         try {
             const response = await fetch(url, {
@@ -42,6 +44,7 @@ export function useApi() {
 
             if (!response.ok || !json.success) {
                 setError(json.message || 'Something went wrong');
+                setFieldErrors(json.errors ?? null);
                 return null;
             }
 
@@ -73,5 +76,5 @@ export function useApi() {
         return request(url, { method: 'DELETE' });
     }, [request]);
 
-    return { data, error, loading, get, post, put, patch, destroy };
+    return { data, error, fieldErrors, loading, get, post, put, patch, destroy };
 }

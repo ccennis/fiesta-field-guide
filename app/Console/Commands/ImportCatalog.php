@@ -20,8 +20,8 @@ class ImportCatalog extends Command
 
     public function handle(CatalogImporter $importer): int
     {
-        if ($this->option('fresh') && $this->testersHaveData()) {
-            $this->error('Beta testers have recorded pieces or wishlist items, and a fresh catalog would delete them. Nothing was changed.');
+        if ($this->option('fresh') && $this->membersHaveData()) {
+            $this->error('Members have recorded pieces or wishlist items, and a fresh catalog would delete them. Nothing was changed.');
 
             return self::FAILURE;
         }
@@ -45,12 +45,12 @@ class ImportCatalog extends Command
         return self::SUCCESS;
     }
 
-    private function testersHaveData(): bool
+    private function membersHaveData(): bool
     {
-        $testers = User::where('role', UserRole::Tester)->pluck('id');
+        $members = User::where('role', UserRole::Member)->pluck('id');
 
-        return Holding::whereIn('user_id', $testers)->exists()
-            || WishlistItem::whereIn('user_id', $testers)->exists();
+        return Holding::whereIn('user_id', $members)->exists()
+            || WishlistItem::whereIn('user_id', $members)->exists();
     }
 
     private function renderReport(ImportReport $report, string $title, string $file): void

@@ -134,14 +134,14 @@ class ListingResolver extends BaseService
 
         // Only the owner's pieces count as evidence. Before an owner account
         // exists, the imported pieces have no user and are the owner's.
-        $ownerId = User::owner()?->id;
+        $ownerId = User::admin()?->id;
         $ownersPieces = fn ($holdings) => $ownerId === null
             ? $holdings->whereNull('user_id')
             : $holdings->where('user_id', $ownerId);
 
         $variant = Variant::withCount(['evidence', 'holdings' => $ownersPieces])->find($listing->variant_id);
 
-        if ($variant !== null && $variant->evidence_count === 0 && $variant->holdings_count === 0) {
+        if ($variant !== null && $variant->evidence_count === 0 && $variant->holdings_count === 0 && $variant->confirmed_by_owner_at === null) {
             $variant->update(['existence' => VariantExistence::Unconfirmed]);
         }
     }

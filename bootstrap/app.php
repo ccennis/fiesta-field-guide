@@ -1,7 +1,8 @@
 <?php
 
 use App\Http\Middleware\EnsureActive;
-use App\Http\Middleware\EnsureOwner;
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureEmailVerified;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -26,7 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/');
         $middleware->alias([
             'active' => EnsureActive::class,
-            'owner' => EnsureOwner::class,
+            'admin' => EnsureAdmin::class,
+            'verified' => EnsureEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

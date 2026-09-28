@@ -21,7 +21,7 @@ export default function AcceptInvite({ token, onJoined }) {
     const { get, error: checkError } = useApi();
     const { post, loading, error } = useApi();
     const [valid, setValid] = useState(null);
-    const [ownerName, setOwnerName] = useState(null);
+    const [adminName, setAdminName] = useState(null);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -29,7 +29,7 @@ export default function AcceptInvite({ token, onJoined }) {
     useEffect(() => {
         get(`/api/invites/${token}`).then((result) => {
             setValid(result !== null);
-            setOwnerName(result?.owner_name ?? null);
+            setAdminName(result?.admin_name ?? null);
         });
     }, [get, token]);
 
@@ -61,7 +61,7 @@ export default function AcceptInvite({ token, onJoined }) {
                     <form onSubmit={submit} className="space-y-4">
                         <p className="text-sm text-glaze-slate">
                             You've been invited to test the field guide
-                            {ownerName ? ` by ${ownerName}` : ''}. Set up your login to start your own collection.
+                            {adminName ? ` by ${adminName}` : ''}. Set up your login to start your own collection.
                         </p>
                         <Field label="Your name">
                             <input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" className={INPUT} />
