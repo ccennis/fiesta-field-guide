@@ -27,7 +27,9 @@ export default function Members() {
     const [members, setMembers] = useState([]);
     const [invites, setInvites] = useState([]);
     const [note, setNote] = useState('');
+    const [email, setEmail] = useState('');
     const [link, setLink] = useState(null);
+    const [sentTo, setSentTo] = useState(null);
     const [copied, setCopied] = useState(false);
 
     const load = useCallback(async () => {
@@ -42,11 +44,13 @@ export default function Members() {
 
     const createInvite = async (e) => {
         e.preventDefault();
-        const created = await post('/api/invitations', { note: note || null });
+        const created = await post('/api/invitations', { note: note || null, email: email || null });
         if (created) {
             setLink(created.link);
+            setSentTo(created.sent_to);
             setCopied(false);
             setNote('');
+            setEmail('');
             load();
         }
     };
@@ -74,22 +78,35 @@ export default function Members() {
                 <p className="text-xs text-glaze-slate">
                     Anyone can sign up on their own. A friend who joins with a link can also look at your collection.
                 </p>
-                <form onSubmit={createInvite} className="flex gap-2">
+                <form onSubmit={createInvite} className="space-y-2">
                     <input
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        placeholder="Who it's for (just for you)"
-                        maxLength={100}
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Their email, to send it for you (optional)"
                         className={INPUT}
                     />
-                    <button type="submit" className={`${BUTTON} shrink-0 bg-glaze-ink text-glaze-cream`}>
-                        Create link
-                    </button>
+                    <div className="flex gap-2">
+                        <input
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Who it's for (just for you)"
+                            maxLength={100}
+                            className={INPUT}
+                        />
+                        <button type="submit" className={`${BUTTON} shrink-0 bg-glaze-ink text-glaze-cream`}>
+                            {email ? 'Email the invite' : 'Create link'}
+                        </button>
+                    </div>
                 </form>
 
                 {link && (
                     <div className="space-y-2 rounded-xl bg-glaze-sun/20 p-3">
-                        <p className="text-sm font-bold">Send this link. It works once and expires in 7 days.</p>
+                        <p className="text-sm font-bold">
+                            {sentTo
+                                ? `Emailed to ${sentTo}. Here is the link too, in case you want to send it another way.`
+                                : 'Send this link. It works once and expires in 7 days.'}
+                        </p>
                         <div className="flex gap-2">
                             <input readOnly value={link} onFocus={(e) => e.target.select()} className={`${INPUT} font-mono text-xs`} />
                             <button onClick={copy} className={`${BUTTON} shrink-0 bg-glaze-lagoon text-white`}>
@@ -112,7 +129,8 @@ export default function Members() {
                     <ul className="divide-y divide-glaze-shell">
                         {invites.map((invite) => (
                             <li key={invite.id} className="flex items-center gap-3 py-2 text-sm">
-                                <span className="font-bold">{invite.note || 'Unnamed invite'}</span>
+                                <span className="font-bold">{invite.note || invite.sent_to || 'Unnamed invite'}</span>
+                                {invite.sent_to && invite.note && <span className="text-xs text-glaze-slate">{invite.sent_to}</span>}
                                 <span className="text-xs text-glaze-slate">expires {invite.expires_at}</span>
                                 <button onClick={() => revoke(invite)} className="ml-auto text-xs font-bold text-glaze-slate hover:underline">
                                     Withdraw

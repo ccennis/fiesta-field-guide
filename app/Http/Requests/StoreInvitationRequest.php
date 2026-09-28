@@ -18,6 +18,7 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'note' => 'sometimes|nullable|string|max:100',
+            'email' => 'sometimes|nullable|email|max:255',
         ];
     }
 }

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['token_hash', 'note', 'created_by', 'accepted_by', 'expires_at', 'accepted_at'])]
+#[Fillable(['token_hash', 'note', 'sent_to', 'created_by', 'accepted_by', 'expires_at', 'accepted_at'])]
 #[Hidden(['token_hash'])]
 class Invitation extends Model
 {

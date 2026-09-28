@@ -21,6 +21,7 @@ class InvitationResource extends JsonResource
         return [
             'id' => $this->id,
             'note' => $this->note,
+            'sent_to' => $this->sent_to,
             'expires_at' => $this->expires_at->toDateString(),
             'created_at' => $this->created_at->toDateString(),
             'link' => $this->when($this->link !== null, $this->link),

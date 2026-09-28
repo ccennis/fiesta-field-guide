@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Enums\UserRole;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Notifications\InvitationNotification;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -21,20 +23,33 @@ class InvitationService extends BaseService
     private const DAYS_VALID = 7;
 
     /**
+     * Make a link, and email it when an address is given. The link is still
+     * returned either way, so it can also be copied.
+     *
      * @return array{invitation: Invitation, link: string}
      */
-    public function create(User $admin, ?string $note): array
+    public function create(User $admin, ?string $note, ?string $email = null): array
     {
+        if ($email !== null && User::where('email', $email)->exists()) {
+            throw new RuntimeException('That email already has an account.');
+        }
+
         $token = Str::random(40);
+        $link = url('/invite/'.$token);
 
         $invitation = Invitation::create([
             'token_hash' => Invitation::hashToken($token),
             'note' => $note,
+            'sent_to' => $email,
             'created_by' => $admin->id,
             'expires_at' => now()->addDays(self::DAYS_VALID),
         ]);
 
-        return ['invitation' => $invitation, 'link' => url('/invite/'.$token)];
+        if ($email !== null) {
+            Notification::route('mail', $email)->notify(new InvitationNotification($link, $admin->name, self::DAYS_VALID));
+        }
+
+        return ['invitation' => $invitation, 'link' => $link];
     }
 
     /**
