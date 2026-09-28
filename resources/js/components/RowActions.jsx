@@ -9,13 +9,13 @@ const INPUT =
     'w-full rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm focus:border-glaze-lagoon focus:outline-none';
 
 /**
- * Per-row editing: the swatch for the color, which only the owner may change,
+ * Per-row editing: the swatch for the color, which only the admin may change,
  * and adding another physical piece of this exact variant to your own
  * collection. One row per object, so adding is one click per piece.
- * `viewingOwners` is set when a tester opened the row from the owner's
- * collection, where the row's count is the owner's, not theirs.
+ * `viewingAdmins` is set when an invited friend opened the row from the
+ * admin's collection, where the row's count is the admin's, not theirs.
  */
-export default function RowActions({ variant, onClose, onChanged, viewingOwners = false }) {
+export default function RowActions({ variant, onClose, onChanged, viewingAdmins = false }) {
     const user = useUser();
     const { patch, error: hexError } = useApi();
     const { post, error: addError } = useApi();
@@ -118,7 +118,7 @@ export default function RowActions({ variant, onClose, onChanged, viewingOwners 
                     </button>
                 </div>
 
-                {user?.is_owner && (
+                {user?.is_admin && (
                 <section className="space-y-2">
                     <h3 className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">
                         Swatch for {variant.color.name}
@@ -161,7 +161,7 @@ export default function RowActions({ variant, onClose, onChanged, viewingOwners 
                 </section>
                 )}
 
-                <section className={`space-y-2 ${user?.is_owner ? 'border-t-2 border-glaze-shell pt-4' : ''}`}>
+                <section className={`space-y-2 ${user?.is_admin ? 'border-t-2 border-glaze-shell pt-4' : ''}`}>
                     <h3 className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">
                         Add a piece you own
                     </h3>
@@ -222,7 +222,7 @@ export default function RowActions({ variant, onClose, onChanged, viewingOwners 
                         One row per physical piece, added to your own collection.
                         {String(variant.product.id) !== productId
                             ? ' Adding a different product in this color.'
-                            : viewingOwners
+                            : viewingAdmins
                               ? ''
                               : ` You currently have ${variant.owned_count ?? 0}.`}
                     </p>

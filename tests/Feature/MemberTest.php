@@ -16,7 +16,7 @@ use App\Models\WishlistItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class BetaTesterTest extends TestCase
+class MemberTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -35,7 +35,7 @@ class BetaTesterTest extends TestCase
         parent::setUp();
 
         $this->owner = User::factory()->create(['name' => 'Caroline']);
-        $this->tester = User::factory()->tester()->create(['name' => 'Sam']);
+        $this->tester = User::factory()->invited()->create(['name' => 'Sam']);
 
         $line = Line::create(['name' => 'Fiesta', 'slug' => 'fiesta']);
         $lilac = Color::create(['line_id' => $line->id, 'name' => 'Lilac', 'produced_from' => 1993]);
@@ -70,7 +70,7 @@ class BetaTesterTest extends TestCase
         $mine = collect($this->getJson('/api/variants?owned=1')->json('data.items'));
         $this->assertSame([$this->cobaltPlate->id], $mine->pluck('id')->all());
 
-        $owners = collect($this->getJson('/api/variants?owned=1&collection=owner')->json('data.items'));
+        $owners = collect($this->getJson('/api/variants?owned=1&collection=admin')->json('data.items'));
         $this->assertSame([$this->lilacPlate->id], $owners->pluck('id')->all());
         $this->assertSame(2, $owners->first()['owned_count']);
 
@@ -84,8 +84,8 @@ class BetaTesterTest extends TestCase
         $this->getJson("/api/variants/{$this->lilacPlate->id}")
             ->assertOk()
             ->assertJsonPath('data.owned_count', 0)
-            ->assertJsonPath('data.owner.name', 'Caroline')
-            ->assertJsonPath('data.owner.count', 2);
+            ->assertJsonPath('data.admin.name', 'Caroline')
+            ->assertJsonPath('data.admin.count', 2);
     }
 
     public function test_nobody_can_change_someone_elses_piece(): void
@@ -143,10 +143,10 @@ class BetaTesterTest extends TestCase
 
         auth()->guard('web')->logout();
 
-        $this->getJson("/api/invites/{$token}")->assertOk()->assertJsonPath('data.owner_name', $this->owner->name);
+        $this->getJson("/api/invites/{$token}")->assertOk()->assertJsonPath('data.admin_name', $this->owner->name);
         $this->postJson("/api/invites/{$token}/accept", [
             'name' => 'Jo', 'email' => 'jo@example.com', 'password' => 'a-good-password',
-        ])->assertCreated()->assertJsonPath('data.role.value', 'tester');
+        ])->assertCreated()->assertJsonPath('data.role.value', 'member');
 
         $this->assertAuthenticatedAs(User::where('email', 'jo@example.com')->sole());
 
@@ -173,7 +173,7 @@ class BetaTesterTest extends TestCase
         $this->tester->update(['password' => 'a-good-password']);
         $this->actingAs($this->tester)->getJson('/api/me')->assertOk();
 
-        $this->actingAs($this->owner)->postJson("/api/testers/{$this->tester->id}/disable")->assertOk();
+        $this->actingAs($this->owner)->postJson("/api/members/{$this->tester->id}/disable")->assertOk();
 
         $this->actingAs($this->tester->fresh())->getJson('/api/me')->assertUnauthorized();
 
@@ -186,7 +186,7 @@ class BetaTesterTest extends TestCase
 
     public function test_the_owners_access_cannot_be_removed(): void
     {
-        $this->actingAs($this->owner)->postJson("/api/testers/{$this->owner->id}/disable")->assertStatus(422);
+        $this->actingAs($this->owner)->postJson("/api/members/{$this->owner->id}/disable")->assertStatus(422);
     }
 
     public function test_the_first_account_created_claims_pieces_imported_before_it(): void
@@ -199,7 +199,7 @@ class BetaTesterTest extends TestCase
             ->expectsQuestion('Password again', 'a-long-enough-password')
             ->assertSuccessful();
 
-        $owner = User::owner();
+        $owner = User::admin();
         $this->assertSame('owner@example.com', $owner->email);
         $this->assertSame($owner->id, $unclaimed->fresh()->user_id);
     }

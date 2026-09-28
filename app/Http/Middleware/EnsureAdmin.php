@@ -7,17 +7,17 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * The shared catalog and the invitations are the owner's to change. Testers
- * are refused here as well as having the screens hidden.
+ * The shared catalog and who may use the app are the admin's to change.
+ * Members are refused here as well as having the screens hidden.
  */
-class EnsureOwner
+class EnsureAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user()?->isOwner()) {
+        if (! $request->user()?->isAdmin()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Only the owner can change the catalog or invite people.',
+                'message' => 'Only the admin can change the catalog or manage members.',
                 'data' => null,
                 'errors' => null,
             ], 403);

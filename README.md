@@ -13,42 +13,50 @@ composer setup
 composer dev
 ```
 
-Create the owner's login, which prompts for a password in the terminal:
+Create the admin's login, which prompts for a password in the terminal:
 
 ```bash
 php artisan fiesta:make-user you@example.com
 ```
 
-The first login made this way is the owner, and it claims any imported pieces and wishlist
+The first login made this way is the admin, and it claims any imported pieces and wishlist
 items that belong to nobody yet. Run it again with the same email to reset the password.
-It will not make a second login. Everyone else joins through an invite link.
+It will not make a second login. Everyone else signs up in the app or joins with an
+invite link.
 
-There is no open sign-up page. The API is loaded under the `web` middleware group, so it
-uses the session, cookies and CSRF protection of a normal Laravel page. Every endpoint
-except login and the invite link check requires a signed-in user. Login is limited to 5
-attempts a minute, and invite links to 10.
+Then open the URL printed by `php artisan serve`. `composer setup` migrates and imports
+the collection; there are no other steps. Locally, confirmation emails are written to
+`storage/logs/laravel.log` rather than sent.
 
-## Owner and beta testers
+The API is loaded under the `web` middleware group, so it uses the session, cookies and
+CSRF protection of a normal Laravel page. Every endpoint except sign-in, sign-up and the
+invite link check requires a signed-in user with a confirmed email. Sign-in and sign-up
+are limited to 5 attempts a minute, and invite links to 10.
 
-There are two roles. The **owner** looks after the shared catalog: products, colors,
-values, store rulings and swatches. **Beta testers** keep their own collection and their
-own wishlist against that catalog, and cannot change it.
+## Admin and members
 
-- The owner makes invite links on the Testers screen. A link works once, expires after 7
-  days and is shown only when it is made. Only a hash of it is stored.
-- A tester can switch the Collection screen between their own pieces and the owner's.
-  Piece detail says how many the owner has. Wishlists stay private to each person.
-- Values are shared. Everyone sees the owner's figures.
-- Only the owner's pieces confirm that a variant exists, since a tester might record
+There are two roles. The **admin** looks after the shared catalog: products, colors and
+their years, which products came in which colors, values, store rulings and swatches.
+**Members** keep their own collection and their own wishlist against that catalog, and
+cannot change it.
+
+- Anyone can sign up. They are signed in straight away but see only a "check your email"
+  screen until they open the confirmation link. The link is signed, so it works on a
+  device that is not signed in.
+- The admin makes invite links for friends on Admin, Members. A link works once, expires
+  after 7 days and is shown only when it is made. Only a hash of it is stored. A friend
+  who joins this way skips the email step, since the admin sent the link to them.
+- Only invited friends can switch My collection to the admin's pieces, and only they see
+  how many the admin has on a piece. People who signed up on their own cannot.
+- Wishlists stay private to each person. Values are shared, and everyone sees the
+  admin's figures.
+- Only the admin's pieces confirm that a variant exists, since a member might record
   something by mistake.
-- Removing a tester's access signs them out everywhere and keeps their pieces. Access
+- Removing a member's access signs them out everywhere and keeps their pieces. Access
   can be restored later.
 
 Asking for someone else's piece or wishlist item returns 404, the same as one that does
 not exist.
-
-Then open the URL printed by `php artisan serve`. `composer setup` migrates and imports
-the collection; there are no other steps.
 
 ## The core distinction
 
@@ -103,6 +111,21 @@ Variants are generated, so most were never confirmed to exist. `existence` start
 Owning a piece is evidence. Listing a piece at qty 0 is not. The interface says **no known
 example** rather than dressing a generated row up as a real listing.
 
+There are three ways a variant becomes confirmed: the admin owns one, a store listing the
+admin ruled on shows one, or the admin ticks the product on a color's checklist in Admin,
+Colors. A tick records `confirmed_by_owner_at`, so it outlasts the store listing going
+away or the wishlist import. Unticking only works while neither of the other two vouches
+for the piece.
+
+### Browse
+
+Browse is the front screen. A search matches color names and product names, including
+store names the admin mapped. A color comes back with every product in its line, verified
+pieces first. A product comes back with every color, split into vintage and post-86 by
+each color's first year, since products carry no years of their own. Unverified pieces are
+shown dashed and labeled rather than hidden, because most of the catalog is still
+unverified. Decals are left out; they are found from the piece they are on.
+
 ### The wishlist
 
 A wishlist item names a product and optionally a variant. A null variant means that product
@@ -137,9 +160,9 @@ It only reads the qty 0 rows, skips anything already owned or already open on th
 wishlist, and sets variants confirmed only by a qty 0 row back to unconfirmed. It is safe
 to run more than once.
 
-The spreadsheet is the owner's, so everything these commands create belongs to the owner.
-`import-holdings --fresh` replaces only the owner's pieces and wishlist. `import-catalog
---fresh` rebuilds every variant, so it refuses to run once a tester has recorded anything.
+The spreadsheet is the admin's, so everything these commands create belongs to the admin.
+`import-holdings --fresh` replaces only the admin's pieces and wishlist. `import-catalog
+--fresh` rebuilds every variant, so it refuses to run once a member has recorded anything.
 
 All three print a reconciliation report and write it to
 `storage/app/private/reports/`. **Nothing in the source data is silently resolved.** The
@@ -239,25 +262,32 @@ All responses use `{ success, message, data, errors }`.
 | PATCH | `/api/products/{id}` | Rename a product |
 | POST | `/api/products/{id}/merge` | Fold one product into another |
 | DELETE | `/api/products/{id}` | Remove an unused product |
-| PATCH | `/api/colors/{id}` | Edit hex |
+| PATCH | `/api/colors/{id}` | Edit hex and production years |
+| GET | `/api/colors/{id}/checklist` | Every product in the color's line and whether it was made in it |
+| POST | `/api/colors/{id}/made` | `product_id` and `made`, the admin's word on one pairing |
+| GET | `/api/browse` | `?q=` of two or more letters, or `?color_id=` or `?product_id=` |
 | POST | `/api/holdings` | Record a piece |
 | PATCH | `/api/holdings/{id}` | Condition and condition notes |
 | GET | `/api/wishlist` | `?fulfilled=1\|0` `?priority=` `?line_id=` `?product_id=`, grails first |
 | POST | `/api/wishlist` | Add an item; omit `variant_id` for any color |
 | PATCH | `/api/wishlist/{id}` | Priority, max price, notes, `fulfilled` to reopen |
 | DELETE | `/api/wishlist/{id}` | Remove an item |
-| GET | `/api/invitations` | Open invite links, owner only |
-| POST | `/api/invitations` | Make an invite link, owner only |
-| DELETE | `/api/invitations/{id}` | Withdraw an unused link, owner only |
-| GET | `/api/testers` | Testers and their piece counts, owner only |
-| POST | `/api/testers/{id}/disable` | Remove a tester's access, owner only |
-| POST | `/api/testers/{id}/enable` | Restore it, owner only |
+| GET | `/api/invitations` | Open invite links, admin only |
+| POST | `/api/invitations` | Make an invite link, admin only |
+| DELETE | `/api/invitations/{id}` | Withdraw an unused link, admin only |
+| GET | `/api/members` | Members, their piece counts and how they joined, admin only |
+| POST | `/api/members/{id}/disable` | Remove a member's access, admin only |
+| POST | `/api/members/{id}/enable` | Restore it, admin only |
+| POST | `/api/register` | Sign up, public |
+| POST | `/api/email/resend` | Send the confirmation email again, before confirming |
+| GET | `/email/verify/{id}/{hash}` | The signed link in the confirmation email |
 | GET | `/api/invites/{token}` | Check an invite link, public |
 | POST | `/api/invites/{token}/accept` | Join with an invite link, public |
 
-Holdings, the wishlist and `/api/variants` answer for whoever is signed in. A tester adds
-`?collection=owner` to `/api/variants` to see the owner's pieces instead. Every product,
-color, source and swatch write is owner only and returns 403 for a tester.
+Holdings, the wishlist, `/api/browse` and `/api/variants` answer for whoever is signed in.
+An invited friend adds `?collection=admin` to `/api/variants` to see the admin's pieces
+instead; anyone else asking for it gets a 422. Every catalog write is admin only and
+returns 403 for a member.
 
 `/api/variants` backs both the collection view and the missing view. They are the same query
 with `owned` flipped. Unfiltered, "missing" is 1,647 rows, which is why the line, era and
@@ -271,23 +301,30 @@ holdings that point at them.
 
 | File | Purpose |
 |---|---|
-| `components/Identify.jsx` | Product first, color second. No free text color search, because the color name is the thing being worked out. |
+| `components/Browse.jsx` | Search by color or product, a color palette before anything is typed, and the piece panel |
 | `components/Collection.jsx` | Filters plus the own/missing/wishlist toggle |
 | `components/Wishlist.jsx` | Open and found items, grail toggle, remove and reopen |
-| `components/VariantDetail.jsx` | The answer panel, inline condition editing, and the wishlist card |
+| `components/VariantDetail.jsx` | The piece panel: add to collection, inline condition editing, and the wishlist card |
+| `components/Admin.jsx` | Admin only. Colors, store listings, products and members in one place |
+| `components/ColorAdmin.jsx` | A color's years and its "made in this color" checklist |
+| `components/Review.jsx` | Store listing rulings and suggested swatches |
 | `components/Products.jsx` | Rename, merge and add products |
 | `components/RowActions.jsx` | Per-row editing of hex and owned pieces |
 | `components/Swatch.jsx` | Deliberately obvious placeholder where hex data is absent |
-| `components/Testers.jsx` | Owner only. Invite links and tester access |
+| `components/Members.jsx` | Admin only. Invite links, and everyone's access |
+| `components/SignUp.jsx` | Open sign-up |
+| `components/ConfirmEmail.jsx` | What someone sees until they confirm their email |
 | `components/AcceptInvite.jsx` | Where an invite link lands |
-| `hooks/useApi.js` | `get` `post` `put` `patch` `destroy` |
-| `hooks/useUser.js` | The signed-in user, so screens can hide owner-only controls |
+| `hooks/useApi.js` | `get` `post` `put` `patch` `destroy`, plus `fieldErrors` from validation |
+| `hooks/useUser.js` | The signed-in user, so screens can hide admin-only controls |
 
 ## Known gaps
 
 - **Any-color items cannot list their colors.** Which products were made in which colors
-  is not in the source data, so an any-color item matches every plain color of the
-  product rather than only the ones that exist.
+  is only known where the admin has ticked the checklist or a store listing shows it, so
+  an any-color item still matches every plain color of the product.
+- **No password reset in the app.** A member who forgets their password has to ask the
+  admin, who can reset it with `fiesta:make-user` on the server.
 - **Eleven colors have no hex.** Heather, Ivory, Light Green, Peacock, Red, Red (Orange
   Red), Rose, Turquoise, Evergreen, Foundry and Linen render as dashed placeholders. The
   51 that do have values are community sourced and approximate, not measured from the

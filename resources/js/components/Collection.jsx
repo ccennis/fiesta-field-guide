@@ -16,7 +16,7 @@ function ownershipParams(params, ownership, whose) {
     if (ownership === 'owned') params.set('owned', '1');
     if (ownership === 'missing') params.set('owned', '0');
     if (ownership === 'wishlist') params.set('wishlisted', '1');
-    if (whose === 'owner') params.set('collection', 'owner');
+    if (whose === 'admin') params.set('collection', 'admin');
 }
 
 const SELECT = 'rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm font-medium focus:border-glaze-lagoon focus:outline-none';
@@ -114,11 +114,11 @@ export default function Collection() {
         <div className="space-y-4">
             <div className="rounded-2xl border-2 border-glaze-shell bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-end gap-4">
-                    {user && !user.is_owner && (
+                    {user && !user.is_admin && user.admin_name && (
                         <div className="flex w-full gap-1 rounded-full bg-glaze-sun/30 p-1 md:w-auto">
                             {[
                                 { key: 'mine', label: 'My collection' },
-                                { key: 'owner', label: `${user.owner_name}'s` },
+                                { key: 'admin', label: `${user.admin_name}'s` },
                             ].map((w) => (
                                 <button
                                     key={w.key}
@@ -400,7 +400,7 @@ export default function Collection() {
                     variant={acting}
                     onClose={() => setActing(null)}
                     onChanged={refresh}
-                    viewingOwners={whose === 'owner'}
+                    viewingAdmins={whose === 'admin'}
                 />
             )}
 

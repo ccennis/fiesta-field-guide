@@ -15,26 +15,26 @@ function Section({ title, children }) {
 }
 
 /**
- * The owner's screen for beta testers: make an invite link to send, withdraw
- * links not yet used, and remove or restore a tester's access. Removing access
- * keeps their pieces.
+ * The admin's screen for everyone else: make an invite link for a friend,
+ * withdraw links not yet used, and remove or restore anyone's access.
+ * Removing access keeps their pieces.
  */
-export default function Testers() {
-    const { get: getTesters } = useApi();
+export default function Members() {
+    const { get: getMembers } = useApi();
     const { get: getInvites } = useApi();
     const { post, destroy, error } = useApi();
 
-    const [testers, setTesters] = useState([]);
+    const [members, setMembers] = useState([]);
     const [invites, setInvites] = useState([]);
     const [note, setNote] = useState('');
     const [link, setLink] = useState(null);
     const [copied, setCopied] = useState(false);
 
     const load = useCallback(async () => {
-        const [t, i] = await Promise.all([getTesters('/api/testers'), getInvites('/api/invitations')]);
-        setTesters(t ?? []);
+        const [m, i] = await Promise.all([getMembers('/api/members'), getInvites('/api/invitations')]);
+        setMembers(m ?? []);
         setInvites(i ?? []);
-    }, [getTesters, getInvites]);
+    }, [getMembers, getInvites]);
 
     useEffect(() => {
         load();
@@ -64,13 +64,16 @@ export default function Testers() {
         if (await destroy(`/api/invitations/${invite.id}`)) load();
     };
 
-    const toggleAccess = async (tester) => {
-        if (await post(`/api/testers/${tester.id}/${tester.disabled ? 'enable' : 'disable'}`)) load();
+    const toggleAccess = async (member) => {
+        if (await post(`/api/members/${member.id}/${member.disabled ? 'enable' : 'disable'}`)) load();
     };
 
     return (
         <div className="mx-auto max-w-2xl space-y-4">
-            <Section title="Invite someone">
+            <Section title="Invite a friend">
+                <p className="text-xs text-glaze-slate">
+                    Anyone can sign up on their own. A friend who joins with a link can also look at your collection.
+                </p>
                 <form onSubmit={createInvite} className="flex gap-2">
                     <input
                         value={note}
@@ -120,24 +123,32 @@ export default function Testers() {
                 )}
             </Section>
 
-            <Section title="Testers">
-                {testers.length === 0 ? (
+            <Section title={`Members · ${members.length}`}>
+                {members.length === 0 ? (
                     <p className="text-sm text-glaze-slate">Nobody has joined yet.</p>
                 ) : (
                     <ul className="divide-y divide-glaze-shell">
-                        {testers.map((tester) => (
-                            <li key={tester.id} className="flex items-center gap-3 py-2 text-sm">
+                        {members.map((member) => (
+                            <li key={member.id} className="flex items-center gap-3 py-2 text-sm">
                                 <div className="min-w-0 flex-1">
-                                    <p className={`font-bold ${tester.disabled ? 'text-glaze-slate line-through' : ''}`}>{tester.name}</p>
+                                    <p className={`font-bold ${member.disabled ? 'text-glaze-slate line-through' : ''}`}>
+                                        {member.name}
+                                        {member.invited && (
+                                            <span className="ml-2 rounded-full bg-glaze-sun/40 px-2 py-0.5 text-xs font-bold text-glaze-ink">friend</span>
+                                        )}
+                                        {!member.email_verified && (
+                                            <span className="ml-2 rounded-full bg-glaze-shell px-2 py-0.5 text-xs font-bold text-glaze-slate">email not confirmed</span>
+                                        )}
+                                    </p>
                                     <p className="truncate text-xs text-glaze-slate">
-                                        {tester.email} · {tester.pieces} {tester.pieces === 1 ? 'piece' : 'pieces'} · joined {tester.joined}
+                                        {member.email} · {member.pieces} {member.pieces === 1 ? 'piece' : 'pieces'} · joined {member.joined}
                                     </p>
                                 </div>
                                 <button
-                                    onClick={() => toggleAccess(tester)}
-                                    className={`${BUTTON} shrink-0 ${tester.disabled ? 'bg-glaze-shell text-glaze-ink' : 'text-glaze-flame'}`}
+                                    onClick={() => toggleAccess(member)}
+                                    className={`${BUTTON} shrink-0 ${member.disabled ? 'bg-glaze-shell text-glaze-ink' : 'text-glaze-flame'}`}
                                 >
-                                    {tester.disabled ? 'Restore access' : 'Remove access'}
+                                    {member.disabled ? 'Restore access' : 'Remove access'}
                                 </button>
                             </li>
                         ))}

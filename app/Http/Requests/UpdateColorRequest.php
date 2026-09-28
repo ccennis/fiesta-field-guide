@@ -5,8 +5,9 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * A swatch is reference data, so the only thing editable here is the hex value
- * and it must be a literal #rrggbb rather than a color name.
+ * A swatch must be a literal #rrggbb rather than a color name. Production
+ * years are the owner's correction of the reference data; a blank last year
+ * means the color is still made.
  */
 class UpdateColorRequest extends FormRequest
 {
@@ -22,6 +23,8 @@ class UpdateColorRequest extends FormRequest
     {
         return [
             'hex' => ['sometimes', 'nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'produced_from' => ['sometimes', 'nullable', 'integer', 'between:1900,2100'],
+            'produced_to' => ['sometimes', 'nullable', 'integer', 'between:1900,2100', 'gte:produced_from'],
         ];
     }
 
@@ -32,6 +35,7 @@ class UpdateColorRequest extends FormRequest
     {
         return [
             'hex.regex' => 'A swatch must be a #rrggbb value.',
+            'produced_to.gte' => 'The last year cannot be before the first year.',
         ];
     }
 }

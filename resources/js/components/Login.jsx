@@ -6,8 +6,9 @@ const INPUT =
 
 /**
  * The autocomplete hints let the phone's password manager fill both fields.
+ * `notice` says how an emailed confirmation link went, when one was opened.
  */
-export default function Login({ onSignedIn }) {
+export default function Login({ onSignedIn, onSignUp, notice }) {
     const { post, loading, error } = useApi();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,6 +28,8 @@ export default function Login({ onSignedIn }) {
                         Fiesta<span className="text-glaze-flame"> Field Guide</span>
                     </h1>
                 </div>
+
+                {notice && <p className="rounded-xl bg-glaze-sun/20 px-3 py-2 text-sm font-bold">{notice}</p>}
 
                 <label className="block space-y-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">Email</span>
@@ -61,6 +64,13 @@ export default function Login({ onSignedIn }) {
                 >
                     {loading ? 'Signing in...' : 'Sign in'}
                 </button>
+
+                <p className="text-center text-sm text-glaze-slate">
+                    New here?{' '}
+                    <button type="button" onClick={onSignUp} className="font-bold text-glaze-ink underline underline-offset-2">
+                        Create an account
+                    </button>
+                </p>
             </form>
         </div>
     );

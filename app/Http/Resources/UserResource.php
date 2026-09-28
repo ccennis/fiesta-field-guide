@@ -15,9 +15,15 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'role' => ['value' => $this->role->value, 'label' => $this->role->label()],
-            'is_owner' => $this->isOwner(),
-            // Testers see the owner's collection under the owner's name.
-            'owner_name' => $this->isOwner() ? $this->name : User::owner()?->name,
+            'is_admin' => $this->isAdmin(),
+            'email_verified' => $this->hasVerifiedEmail(),
+            // Invited friends see the admin's collection under the admin's name.
+            // Null for everyone else, so the switch is not offered.
+            'admin_name' => match (true) {
+                $this->isAdmin() => $this->name,
+                $this->canSeeAdminCollection() => User::admin()?->name,
+                default => null,
+            },
         ];
     }
 }

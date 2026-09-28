@@ -3,19 +3,19 @@
 namespace App\Enums;
 
 /**
- * The owner keeps the catalog and invites people. Testers keep their own
- * collection and can look at the owner's, but cannot change the catalog.
+ * The admin keeps the catalog and invites people. Members keep their own
+ * collection against it, and cannot change it.
  */
 enum UserRole: string
 {
-    case Owner = 'owner';
-    case Tester = 'tester';
+    case Admin = 'admin';
+    case Member = 'member';
 
     public function label(): string
     {
         return match ($this) {
-            self::Owner => 'Owner',
-            self::Tester => 'Beta tester',
+            self::Admin => 'Admin',
+            self::Member => 'Member',
         };
     }
 }

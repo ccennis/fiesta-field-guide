@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['product_id', 'color_id', 'decoration_id', 'existence', 'rarity', 'notes'])]
+#[Fillable(['product_id', 'color_id', 'decoration_id', 'existence', 'confirmed_by_owner_at', 'rarity', 'notes'])]
 class Variant extends Model
 {
     public function product(): BelongsTo
@@ -46,6 +46,7 @@ class Variant extends Model
     {
         return [
             'existence' => VariantExistence::class,
+            'confirmed_by_owner_at' => 'datetime',
             'rarity' => Rarity::class,
         ];
     }

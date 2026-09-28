@@ -54,8 +54,22 @@ SESSION_SECURE_COOKIE=true
 
 CACHE_STORE=database
 QUEUE_CONNECTION=sync
-MAIL_MAILER=log
+
+MAIL_MAILER=smtp
+MAIL_HOST=the-mail-service-smtp-host
+MAIL_PORT=587
+MAIL_USERNAME=from-1password
+MAIL_PASSWORD=from-1password
+MAIL_FROM_ADDRESS=hello@fiestafieldguide.com
+MAIL_FROM_NAME="Fiesta Field Guide"
 ```
+
+Sign-up sends a confirmation email, so mail has to really send. Any service with SMTP
+works, such as Postmark, Resend or Amazon SES, and SMTP needs no extra package. The
+sending domain has to be verified with that service, which means adding the DNS records
+it gives you. The credentials live in 1Password and are pasted into the Forge
+environment, never committed. With `MAIL_MAILER=log` people can still sign up, but the
+email is only written to the log and they cannot get past the "check your email" screen.
 
 The database path points into the shared `storage` folder. Zero-downtime deploys build
 every release in a fresh folder, and only `storage` and `.env` carry across. A database
@@ -117,17 +131,20 @@ login:
 ssh fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan db:seed --force"
 ```
 
-The owner's login is created, or its password reset, interactively on the server:
+The admin's login is created, or anyone's password reset, interactively on the server:
 
 ```bash
 ssh -t fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan fiesta:make-user you@example.com"
 ```
 
-Beta testers are invited from the Testers screen in the app, not from the server. Invite
-links are built from `APP_URL`, so it must be the public address.
+Everyone else signs up in the app, or joins with an invite link made on Admin, Members.
+Invite links and confirmation links are built from `APP_URL`, so it must be the public
+address.
 
 The migration that added roles made the oldest existing login the owner, and gave it
-every piece and wishlist item already in the database.
+every piece and wishlist item already in the database. A later migration renamed owner to
+admin and tester to member, kept existing members' view of the admin's collection, and
+marked every existing account's email as confirmed.
 
 ## 5. Nightly backup
 

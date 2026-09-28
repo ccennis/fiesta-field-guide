@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -10,3 +11,10 @@ Route::get('/', function () {
 Route::get('/invite/{token}', function () {
     return view('app');
 });
+
+// The link in the confirmation email. The name is the one Laravel's
+// verification email builds its link from.
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->whereNumber('id')
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');

@@ -25,7 +25,7 @@ class ImportHoldings extends Command
 
         if ($this->option('fresh')) {
             // Only the owner's rows come from the spreadsheet; testers' are left alone.
-            $ownerId = User::owner()?->id;
+            $ownerId = User::admin()?->id;
 
             foreach (['wishlist_items', 'holdings'] as $table) {
                 DB::table($table)
