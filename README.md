@@ -53,6 +53,10 @@ cannot change it.
 - The admin makes invite links for friends on Admin, Members. A link works once, expires
   after 7 days and is shown only when it is made. Only a hash of it is stored. A friend
   who joins this way skips the email step, since the admin sent the link to them.
+- Giving an email address sends the link for you, through the `InvitationNotification`,
+  with a row of Fiesta plates from `public/images/email/plates.png`. The admin's private
+  note about who it is for is never in the email. An address that already has an account
+  is refused.
 - Only invited friends can switch My collection to the admin's pieces, and only they see
   how many the admin has on a piece. People who signed up on their own cannot.
 - Wishlists stay private to each person. Values are shared, and everyone sees the
@@ -316,7 +320,7 @@ All responses use `{ success, message, data, errors }`.
 | PATCH | `/api/wishlist/{id}` | Priority, max price, notes, `fulfilled` to reopen |
 | DELETE | `/api/wishlist/{id}` | Remove an item |
 | GET | `/api/invitations` | Open invite links, admin only |
-| POST | `/api/invitations` | Make an invite link, admin only |
+| POST | `/api/invitations` | Make an invite link, and email it when `email` is given, admin only |
 | DELETE | `/api/invitations/{id}` | Withdraw an unused link, admin only |
 | GET | `/api/members` | Members, their piece counts and how they joined, admin only |
 | POST | `/api/members/{id}/disable` | Remove a member's access, admin only |
@@ -356,7 +360,7 @@ holdings that point at them.
 | `components/StoreNames.jsx` | Store color or product names that did not match exactly, at the top of Admin, Colors and Products |
 | `components/Products.jsx` | Rename, merge and add products |
 | `components/RowActions.jsx` | Per-row editing of hex and owned pieces |
-| `components/Swatch.jsx` | Deliberately obvious placeholder where hex data is absent |
+| `components/Swatch.jsx` | A small plate with rings like the logo's, white on most glazes and soft dark on pale ones; a deliberately obvious placeholder where hex data is absent |
 | `components/Members.jsx` | Admin only. Invite links, and everyone's access |
 | `components/SignUp.jsx` | Open sign-up |
 | `components/ConfirmEmail.jsx` | What someone sees until they confirm their email |
