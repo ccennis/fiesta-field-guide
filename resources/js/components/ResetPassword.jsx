@@ -5,19 +5,20 @@ const INPUT =
     'w-full rounded-lg border-2 border-glaze-shell bg-white px-3 py-3 text-base focus:border-glaze-lagoon focus:outline-none';
 
 /**
- * The autocomplete hints let the phone's password manager fill both fields.
- * `notice` says how an emailed link went, when one was opened.
+ * Where the reset email lands. The link carries only the token, so the email
+ * address is typed again here.
  */
-export default function Login({ onSignedIn, onSignUp, onForgot, notice }) {
-    const { post, loading, error } = useApi();
+export default function ResetPassword({ token, onDone }) {
+    const { post, loading, error, fieldErrors } = useApi();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
     const submit = async (e) => {
         e.preventDefault();
-        const user = await post('/api/login', { email, password });
-        if (user) onSignedIn(user);
+        if ((await post('/api/reset-password', { token, email, password })) !== null) onDone();
     };
+
+    const problems = fieldErrors ? Object.values(fieldErrors).flat() : error ? [error] : [];
 
     return (
         <div className="flex min-h-screen items-center justify-center px-4 pt-[env(safe-area-inset-top)]">
@@ -29,52 +30,38 @@ export default function Login({ onSignedIn, onSignUp, onForgot, notice }) {
                     </h1>
                 </div>
 
-                {notice && <p className="rounded-xl bg-glaze-sun/20 px-3 py-2 text-sm font-bold">{notice}</p>}
+                <h2 className="text-lg font-black">Choose a new password</h2>
 
                 <label className="block space-y-1">
                     <span className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">Email</span>
-                    <input
-                        type="email"
-                        autoComplete="username"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className={INPUT}
-                    />
+                    <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required className={INPUT} />
                 </label>
-
                 <label className="block space-y-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">Password</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-glaze-slate">New password (8 or more characters)</span>
                     <input
                         type="password"
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
+                        minLength={8}
                         className={INPUT}
                     />
                 </label>
 
-                {error && <p className="text-sm font-bold text-glaze-flame">{error}</p>}
+                {problems.map((p) => (
+                    <p key={p} className="text-sm font-bold text-glaze-flame">
+                        {p}
+                    </p>
+                ))}
 
                 <button
                     type="submit"
                     disabled={loading}
                     className="w-full rounded-full bg-glaze-ink px-5 py-3 text-base font-bold text-glaze-cream disabled:opacity-60"
                 >
-                    {loading ? 'Signing in...' : 'Sign in'}
+                    Save the new password
                 </button>
-
-                <button type="button" onClick={onForgot} className="w-full text-sm font-bold text-glaze-slate underline-offset-2 hover:underline">
-                    Forgot your password?
-                </button>
-
-                <p className="text-center text-sm text-glaze-slate">
-                    New here?{' '}
-                    <button type="button" onClick={onSignUp} className="font-bold text-glaze-ink underline underline-offset-2">
-                        Create an account
-                    </button>
-                </p>
             </form>
         </div>
     );

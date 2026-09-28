@@ -6,9 +6,12 @@ use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 /**
- * Session sign-in, sign-up and email confirmation. Sign-ins are always
+ * Session sign-in, sign-up, email confirmation and password reset. Sign-ins are always
  * remembered, since the app lives on a phone home screen and should not ask
  * again in a shop.
  */
@@ -69,6 +72,37 @@ class AuthService extends BaseService
         if (! $user->hasVerifiedEmail()) {
             $user->sendEmailVerificationNotification();
         }
+    }
+
+    /**
+     * Email a reset link. Nothing is said about whether the address has an
+     * account, and a member whose access was removed is not sent one.
+     */
+    public function sendPasswordResetLink(string $email): void
+    {
+        Password::sendResetLink(['email' => $email, 'disabled_at' => null]);
+    }
+
+    /**
+     * Set a new password from an emailed link. Opening the link proves the
+     * address, so it also counts as confirming it. Every other session and
+     * remembered sign-in ends.
+     *
+     * @param  array{token: string, email: string, password: string}  $data
+     */
+    public function resetPassword(array $data): bool
+    {
+        $status = Password::reset($data + ['disabled_at' => null], function (User $user, string $password) {
+            $user->forceFill([
+                'password' => $password,
+                'remember_token' => Str::random(60),
+                'email_verified_at' => $user->email_verified_at ?? now(),
+            ])->save();
+
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+        });
+
+        return $status === Password::PASSWORD_RESET;
     }
 
     public function logout(Request $request): void
