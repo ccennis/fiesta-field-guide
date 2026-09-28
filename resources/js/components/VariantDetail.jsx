@@ -300,6 +300,14 @@ export default function VariantDetail({ variantId }) {
                 ) : (
                     <p className="text-sm font-bold text-glaze-slate">No — you do not have this one.</p>
                 )}
+
+                {variant.owner && (
+                    <p className="mt-2 text-sm text-glaze-slate">
+                        {variant.owner.count > 0
+                            ? `${variant.owner.name} has ${variant.owner.count}.`
+                            : `${variant.owner.name} does not have one.`}
+                    </p>
+                )}
             </Card>
 
             <Card title="On your wishlist?">

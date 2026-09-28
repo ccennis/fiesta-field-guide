@@ -13,16 +13,39 @@ composer setup
 composer dev
 ```
 
-Create the login, which prompts for a password in the terminal:
+Create the owner's login, which prompts for a password in the terminal:
 
 ```bash
 php artisan fiesta:make-user you@example.com
 ```
 
-Run it again with the same email to reset the password. There is no sign-up page. The API
-is loaded under the `web` middleware group, so it uses the session, cookies and CSRF
-protection of a normal Laravel page. Every endpoint except `POST /api/login` requires a
-signed-in user, and login is limited to 5 attempts a minute.
+The first login made this way is the owner, and it claims any imported pieces and wishlist
+items that belong to nobody yet. Run it again with the same email to reset the password.
+It will not make a second login. Everyone else joins through an invite link.
+
+There is no open sign-up page. The API is loaded under the `web` middleware group, so it
+uses the session, cookies and CSRF protection of a normal Laravel page. Every endpoint
+except login and the invite link check requires a signed-in user. Login is limited to 5
+attempts a minute, and invite links to 10.
+
+## Owner and beta testers
+
+There are two roles. The **owner** looks after the shared catalog: products, colors,
+values, store rulings and swatches. **Beta testers** keep their own collection and their
+own wishlist against that catalog, and cannot change it.
+
+- The owner makes invite links on the Testers screen. A link works once, expires after 7
+  days and is shown only when it is made. Only a hash of it is stored.
+- A tester can switch the Collection screen between their own pieces and the owner's.
+  Piece detail says how many the owner has. Wishlists stay private to each person.
+- Values are shared. Everyone sees the owner's figures.
+- Only the owner's pieces confirm that a variant exists, since a tester might record
+  something by mistake.
+- Removing a tester's access signs them out everywhere and keeps their pieces. Access
+  can be restored later.
+
+Asking for someone else's piece or wishlist item returns 404, the same as one that does
+not exist.
 
 Then open the URL printed by `php artisan serve`. `composer setup` migrates and imports
 the collection; there are no other steps.
@@ -113,6 +136,10 @@ php artisan fiesta:import-wishlist
 It only reads the qty 0 rows, skips anything already owned or already open on the
 wishlist, and sets variants confirmed only by a qty 0 row back to unconfirmed. It is safe
 to run more than once.
+
+The spreadsheet is the owner's, so everything these commands create belongs to the owner.
+`import-holdings --fresh` replaces only the owner's pieces and wishlist. `import-catalog
+--fresh` rebuilds every variant, so it refuses to run once a tester has recorded anything.
 
 All three print a reconciliation report and write it to
 `storage/app/private/reports/`. **Nothing in the source data is silently resolved.** The
@@ -219,6 +246,18 @@ All responses use `{ success, message, data, errors }`.
 | POST | `/api/wishlist` | Add an item; omit `variant_id` for any color |
 | PATCH | `/api/wishlist/{id}` | Priority, max price, notes, `fulfilled` to reopen |
 | DELETE | `/api/wishlist/{id}` | Remove an item |
+| GET | `/api/invitations` | Open invite links, owner only |
+| POST | `/api/invitations` | Make an invite link, owner only |
+| DELETE | `/api/invitations/{id}` | Withdraw an unused link, owner only |
+| GET | `/api/testers` | Testers and their piece counts, owner only |
+| POST | `/api/testers/{id}/disable` | Remove a tester's access, owner only |
+| POST | `/api/testers/{id}/enable` | Restore it, owner only |
+| GET | `/api/invites/{token}` | Check an invite link, public |
+| POST | `/api/invites/{token}/accept` | Join with an invite link, public |
+
+Holdings, the wishlist and `/api/variants` answer for whoever is signed in. A tester adds
+`?collection=owner` to `/api/variants` to see the owner's pieces instead. Every product,
+color, source and swatch write is owner only and returns 403 for a tester.
 
 `/api/variants` backs both the collection view and the missing view. They are the same query
 with `owned` flipped. Unfiltered, "missing" is 1,647 rows, which is why the line, era and
@@ -239,7 +278,10 @@ holdings that point at them.
 | `components/Products.jsx` | Rename, merge and add products |
 | `components/RowActions.jsx` | Per-row editing of hex and owned pieces |
 | `components/Swatch.jsx` | Deliberately obvious placeholder where hex data is absent |
+| `components/Testers.jsx` | Owner only. Invite links and tester access |
+| `components/AcceptInvite.jsx` | Where an invite link lands |
 | `hooks/useApi.js` | `get` `post` `put` `patch` `destroy` |
+| `hooks/useUser.js` | The signed-in user, so screens can hide owner-only controls |
 
 ## Known gaps
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CollectionView;
 use App\Enums\Era;
 use App\Enums\VariantExistence;
 use App\Models\Color;
@@ -9,6 +10,7 @@ use App\Models\Decoration;
 use App\Models\Holding;
 use App\Models\Line;
 use App\Models\Product;
+use App\Models\User;
 use App\Models\Variant;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -94,13 +96,15 @@ class CatalogService extends BaseService
      *
      * @param  array<string, mixed>  $input
      */
-    public function variants(array $input): LengthAwarePaginator
+    public function variants(array $input, User $viewer): LengthAwarePaginator
     {
         $filters = $this->normalizeFilters($input);
+        $collector = $this->collector($viewer, $filters['collection']);
+        $theirs = fn (Builder $holdings) => $this->ownedBy($holdings, $collector);
 
         $paginator = Variant::query()
             ->with(['product.line', 'color', 'decoration'])
-            ->withCount('holdings')
+            ->withCount(['holdings' => $theirs])
             ->when(
                 $filters['line_id'],
                 fn (Builder $query, $lineId) => $query->whereHas('product', fn (Builder $product) => $product->where('line_id', $lineId))
@@ -127,11 +131,11 @@ class CatalogService extends BaseService
                 fn (Builder $query, $existence) => $query->where('existence', $existence)
             )
             ->when($filters['owned'] !== null, fn (Builder $query) => $filters['owned']
-                ? $query->has('holdings')
-                : $query->doesntHave('holdings'))
+                ? $query->whereHas('holdings', $theirs)
+                : $query->whereDoesntHave('holdings', $theirs))
             ->when(
                 $filters['wishlisted'] !== null,
-                fn (Builder $query) => $this->wishlistService->constrainVariants($query, $filters['wishlisted'])
+                fn (Builder $query) => $this->wishlistService->constrainVariants($query, $filters['wishlisted'], $viewer)
             )
             ->join('products', 'products.id', '=', 'variants.product_id')
             ->join('colors', 'colors.id', '=', 'variants.color_id')
@@ -149,28 +153,39 @@ class CatalogService extends BaseService
 
     /**
      * The in-shop answer for one variant: what it is, what is known about its
-     * rarity, what it is worth, whether one is already owned, and whether it is
-     * on the wishlist.
+     * rarity, what it is worth, whether the viewer owns one, and whether it is
+     * on their wishlist. A tester also sees how many the owner has.
      */
-    public function identify(Variant $variant): Variant
+    public function identify(Variant $variant, User $viewer): Variant
     {
-        $variant->load(['product.line', 'color', 'decoration', 'holdings', 'evidence.listing']);
-        $variant->loadCount('holdings');
+        // Eager loading hands the constraint a relation rather than a builder, so it is untyped.
+        $mine = fn ($holdings) => $holdings->where('user_id', $viewer->id);
+
+        $variant->load(['product.line', 'color', 'decoration', 'holdings' => $mine, 'evidence.listing']);
+        $variant->loadCount(['holdings' => $mine]);
         $this->valuationService->attach(collect([$variant]));
         $variant->setRelation('valueHistory', $this->valuationService->history($variant));
-        $variant->setRelation('wishlistMatch', $this->wishlistService->matchFor($variant));
+        $variant->setRelation('wishlistMatch', $this->wishlistService->matchFor($variant, $viewer));
+
+        $owner = User::owner();
+
+        if (! $viewer->isOwner()) {
+            $variant->setAttribute('owner_name', $owner?->name);
+            $variant->setAttribute('owner_count', $variant->holdings()->where(fn (Builder $holdings) => $this->ownedBy($holdings, $owner))->count());
+        }
 
         return $variant;
     }
 
     /**
-     * Headline numbers for the collection screen.
+     * Headline numbers for the collection screen, for the viewer's own pieces.
      *
      * @return array<string, mixed>
      */
-    public function summary(): array
+    public function summary(User $viewer): array
     {
-        $owned = Variant::with(['product', 'color'])->withCount('holdings')->has('holdings')->get();
+        $mine = fn (Builder $holdings) => $holdings->where('user_id', $viewer->id);
+        $owned = Variant::with(['product', 'color'])->withCount(['holdings' => $mine])->whereHas('holdings', $mine)->get();
         $resolved = $this->valuationService->resolveMany($owned);
 
         $total = 0.0;
@@ -189,13 +204,33 @@ class CatalogService extends BaseService
         }
 
         return [
-            'holdings' => Holding::count(),
+            'holdings' => Holding::where('user_id', $viewer->id)->count(),
             'variants_owned' => $owned->count(),
             'variants_total' => Variant::count(),
             'variants_confirmed' => Variant::where('existence', VariantExistence::Confirmed)->count(),
             'estimated_value' => round($total, 2),
             'pieces_without_a_value' => $unvalued,
-        ] + $this->wishlistService->counts();
+        ] + $this->wishlistService->counts($viewer);
+    }
+
+    /**
+     * Whose pieces a collection view counts. Testers may look at the owner's
+     * collection; the owner's own view is always theirs.
+     */
+    private function collector(User $viewer, CollectionView $view): ?User
+    {
+        return $view === CollectionView::Owner ? User::owner() : $viewer;
+    }
+
+    /**
+     * Constrain holdings to one person's. Before any owner account exists, the
+     * imported pieces have none, and they are the owner's.
+     */
+    private function ownedBy(Builder $holdings, ?User $collector): Builder
+    {
+        return $collector === null
+            ? $holdings->whereNull('holdings.user_id')
+            : $holdings->where('holdings.user_id', $collector->id);
     }
 
     /**
@@ -225,6 +260,7 @@ class CatalogService extends BaseService
             'owned' => $toBool('owned'),
             'decorated' => $toBool('decorated'),
             'wishlisted' => $toBool('wishlisted'),
+            'collection' => isset($input['collection']) ? CollectionView::from($input['collection']) : CollectionView::Mine,
         ];
     }
 

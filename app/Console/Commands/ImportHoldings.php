@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use App\Services\Import\HoldingImporter;
 use App\Services\Import\ImportReport;
 use Illuminate\Console\Command;
@@ -23,8 +24,15 @@ class ImportHoldings extends Command
         }
 
         if ($this->option('fresh')) {
-            DB::table('wishlist_items')->delete();
-            DB::table('holdings')->delete();
+            // Only the owner's rows come from the spreadsheet; testers' are left alone.
+            $ownerId = User::owner()?->id;
+
+            foreach (['wishlist_items', 'holdings'] as $table) {
+                DB::table($table)
+                    ->when($ownerId, fn ($query, $id) => $query->where('user_id', $id), fn ($query) => $query->whereNull('user_id'))
+                    ->delete();
+            }
+
             DB::table('value_observations')->delete();
         }
 

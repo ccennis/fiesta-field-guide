@@ -5,16 +5,19 @@ namespace App\Services;
 use App\Enums\WishlistPriority;
 use App\Enums\WishlistSource;
 use App\Models\Holding;
+use App\Models\User;
 use App\Models\Variant;
 use App\Models\WishlistItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use RuntimeException;
 
 /**
- * The wishlist names either one exact variant or a product in any plain color.
- * An any-color item never matches a decorated piece, since a decal is its own
- * thing to hunt for. Fulfilled items are kept rather than deleted.
+ * Each person's wishlist names either one exact variant or a product in any
+ * plain color. An any-color item never matches a decorated piece, since a decal
+ * is its own thing to hunt for. Fulfilled items are kept rather than deleted.
+ * Wishlists are private: every read and write is scoped to one person.
  */
 class WishlistService extends BaseService
 {
@@ -26,7 +29,7 @@ class WishlistService extends BaseService
      * @param  array<string, mixed>  $input
      * @return Collection<int, WishlistItem>
      */
-    public function list(array $input): Collection
+    public function list(array $input, User $user): Collection
     {
         $fulfilled = isset($input['fulfilled']) ? filter_var($input['fulfilled'], FILTER_VALIDATE_BOOLEAN) : null;
         $priority = isset($input['priority']) ? WishlistPriority::from($input['priority']) : null;
@@ -34,6 +37,7 @@ class WishlistService extends BaseService
         $productId = isset($input['product_id']) ? (int) $input['product_id'] : null;
 
         $items = WishlistItem::with(['product.line', 'variant.color', 'variant.decoration'])
+            ->where('user_id', $user->id)
             ->when($fulfilled !== null, fn (Builder $query) => $fulfilled
                 ? $query->whereNotNull('fulfilled_at')
                 : $query->open())
@@ -50,7 +54,7 @@ class WishlistService extends BaseService
         return $items;
     }
 
-    public function create(array $data): WishlistItem
+    public function create(array $data, User $user): WishlistItem
     {
         $variantId = $data['variant_id'] ?? null;
 
@@ -58,11 +62,12 @@ class WishlistService extends BaseService
             throw new RuntimeException('That variant belongs to a different product.');
         }
 
-        if ($this->openFor((int) $data['product_id'], $variantId) !== null) {
+        if ($this->openFor($user, (int) $data['product_id'], $variantId) !== null) {
             throw new RuntimeException('This is already on your wishlist.');
         }
 
         $item = WishlistItem::create($data + [
+            'user_id' => $user->id,
             'priority' => WishlistPriority::Want,
             'source' => WishlistSource::Manual,
         ]);
@@ -74,8 +79,10 @@ class WishlistService extends BaseService
      * `fulfilled` false reopens an item, as long as nothing else is already
      * open for the same target.
      */
-    public function update(WishlistItem $item, array $data): WishlistItem
+    public function update(WishlistItem $item, array $data, User $user): WishlistItem
     {
+        $this->authorize($item, $user);
+
         if (array_key_exists('fulfilled', $data)) {
             $data += $data['fulfilled']
                 ? ['fulfilled_at' => $item->fulfilled_at ?? now()]
@@ -89,32 +96,42 @@ class WishlistService extends BaseService
         return $this->loaded($item->fresh());
     }
 
-    public function delete(WishlistItem $item): void
+    public function delete(WishlistItem $item, User $user): void
     {
+        $this->authorize($item, $user);
+
         $item->delete();
     }
 
     /**
-     * The open item a variant satisfies: the exact variant first, then the
-     * product in any color when the piece is plain.
+     * The person's open item a variant satisfies: the exact variant first,
+     * then the product in any color when the piece is plain.
      */
-    public function matchFor(Variant $variant): ?WishlistItem
+    public function matchFor(Variant $variant, User $user): ?WishlistItem
     {
-        $exact = WishlistItem::open()->where('variant_id', $variant->id)->first();
+        $exact = WishlistItem::open()->where('user_id', $user->id)->where('variant_id', $variant->id)->first();
 
         if ($exact !== null || $variant->decoration_id !== null) {
             return $exact;
         }
 
         return WishlistItem::open()
+            ->where('user_id', $user->id)
             ->where('product_id', $variant->product_id)
             ->whereNull('variant_id')
             ->first();
     }
 
+    /**
+     * A new piece crosses off its owner's matching item, never anyone else's.
+     */
     public function fulfill(Holding $holding): ?WishlistItem
     {
-        $item = $this->matchFor($holding->variant);
+        if ($holding->user === null) {
+            return null;
+        }
+
+        $item = $this->matchFor($holding->variant, $holding->user);
 
         if ($item === null) {
             return null;
@@ -129,15 +146,18 @@ class WishlistService extends BaseService
     }
 
     /**
-     * Constrain a variant query to variants on, or off, the open wishlist.
+     * Constrain a variant query to variants on, or off, one person's open
+     * wishlist.
      */
-    public function constrainVariants(Builder $query, bool $wishlisted): Builder
+    public function constrainVariants(Builder $query, bool $wishlisted, User $user): Builder
     {
+        $theirs = fn (Builder $items) => $items->open()->where('wishlist_items.user_id', $user->id);
+
         $onWishlist = fn (Builder $inner) => $inner
-            ->whereHas('wishlistItems', fn (Builder $items) => $items->open())
+            ->whereHas('wishlistItems', $theirs)
             ->orWhere(fn (Builder $plain) => $plain
                 ->whereNull('variants.decoration_id')
-                ->whereHas('product.wishlistItems', fn (Builder $items) => $items->open()->whereNull('variant_id')));
+                ->whereHas('product.wishlistItems', fn (Builder $items) => $theirs($items)->whereNull('variant_id')));
 
         return $wishlisted ? $query->where($onWishlist) : $query->whereNot($onWishlist);
     }
@@ -145,12 +165,25 @@ class WishlistService extends BaseService
     /**
      * @return array<string, int>
      */
-    public function counts(): array
+    public function counts(User $user): array
     {
+        $open = WishlistItem::open()->where('user_id', $user->id);
+
         return [
-            'wishlist_open' => WishlistItem::open()->count(),
-            'grails_open' => WishlistItem::open()->where('priority', WishlistPriority::Grail)->count(),
+            'wishlist_open' => (clone $open)->count(),
+            'grails_open' => (clone $open)->where('priority', WishlistPriority::Grail)->count(),
         ];
+    }
+
+    /**
+     * Someone else's item is reported as missing rather than forbidden, so a
+     * private wishlist does not even confirm an item exists.
+     */
+    private function authorize(WishlistItem $item, User $user): void
+    {
+        if ($item->user_id !== $user->id) {
+            throw (new ModelNotFoundException)->setModel(WishlistItem::class, [$item->id]);
+        }
     }
 
     /**
@@ -184,16 +217,17 @@ class WishlistService extends BaseService
      */
     private function reopenFields(WishlistItem $item): array
     {
-        if ($this->openFor($item->product_id, $item->variant_id, $item->id) !== null) {
+        if ($this->openFor($item->user, $item->product_id, $item->variant_id, $item->id) !== null) {
             throw new RuntimeException('Something is already open on your wishlist for this piece.');
         }
 
         return ['fulfilled_at' => null, 'fulfilled_by_holding_id' => null];
     }
 
-    private function openFor(int $productId, ?int $variantId, ?int $exceptId = null): ?WishlistItem
+    private function openFor(User $user, int $productId, ?int $variantId, ?int $exceptId = null): ?WishlistItem
     {
         return WishlistItem::open()
+            ->where('user_id', $user->id)
             ->where('product_id', $productId)
             ->when(
                 $variantId,

@@ -19,6 +19,8 @@ class WishlistTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $user;
+
     private Product $plate;
 
     private Product $mug;
@@ -31,7 +33,8 @@ class WishlistTest extends TestCase
     {
         parent::setUp();
 
-        $this->actingAs(User::factory()->create());
+        $this->user = User::factory()->create();
+        $this->actingAs($this->user);
 
         $line = Line::create(['name' => 'Fiesta', 'slug' => 'fiesta']);
         $lilac = Color::create(['line_id' => $line->id, 'name' => 'Lilac', 'produced_from' => 1993, 'produced_to' => 1995]);
@@ -49,7 +52,7 @@ class WishlistTest extends TestCase
         $this->wish($this->plate->id, null);
         $exact = $this->wish($this->plate->id, $this->lilacPlate->id);
 
-        $match = app(WishlistService::class)->matchFor($this->lilacPlate);
+        $match = app(WishlistService::class)->matchFor($this->lilacPlate, $this->user);
 
         $this->assertTrue($match->is($exact));
     }
@@ -58,7 +61,7 @@ class WishlistTest extends TestCase
     {
         $anyColor = $this->wish($this->plate->id, null);
 
-        $this->assertTrue(app(WishlistService::class)->matchFor($this->cobaltPlate)->is($anyColor));
+        $this->assertTrue(app(WishlistService::class)->matchFor($this->cobaltPlate, $this->user)->is($anyColor));
     }
 
     public function test_an_any_color_item_never_matches_a_decorated_piece(): void
@@ -72,7 +75,7 @@ class WishlistTest extends TestCase
             'decoration_id' => $decoration->id,
         ]);
 
-        $this->assertNull(app(WishlistService::class)->matchFor($decorated));
+        $this->assertNull(app(WishlistService::class)->matchFor($decorated, $this->user));
     }
 
     public function test_a_duplicate_open_item_is_rejected(): void
@@ -139,6 +142,7 @@ class WishlistTest extends TestCase
     private function wish(int $productId, ?int $variantId, array $extra = []): WishlistItem
     {
         return WishlistItem::create($extra + [
+            'user_id' => $this->user->id,
             'product_id' => $productId,
             'variant_id' => $variantId,
             'priority' => WishlistPriority::Want,

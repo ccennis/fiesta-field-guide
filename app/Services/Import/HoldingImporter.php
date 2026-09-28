@@ -13,10 +13,12 @@ use App\Models\Holding;
 use App\Models\Line;
 use App\Models\Product;
 use App\Models\ProductAlias;
+use App\Models\User;
 use App\Models\ValueObservation;
 use App\Models\Variant;
 use App\Models\WishlistItem;
 use App\Services\BaseService;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Imports owned pieces, value observations, and the wishlist implied by qty 0
@@ -64,6 +66,9 @@ class HoldingImporter extends BaseService
 
     /** @var array<int, array{product_id: int, source: string}> qty 0 rows, keyed by variant id */
     private array $listedNotOwned = [];
+
+    /** The owner's account, or null before one exists. */
+    private ?int $ownerId = null;
 
     public function __construct(
         private SeedDataReader $reader,
@@ -172,6 +177,8 @@ class HoldingImporter extends BaseService
 
     private function buildIndexes(): void
     {
+        $this->ownerId = User::owner()?->id;
+
         foreach (Color::all() as $color) {
             $this->colors[$this->colorKey($color->line_id, $color->name, $color->produced_from)] = $color;
         }
@@ -251,7 +258,7 @@ class HoldingImporter extends BaseService
             }
 
             for ($i = 0; $i < $qty; $i++) {
-                Holding::create(['variant_id' => $variant->id]);
+                Holding::create(['user_id' => $this->ownerId, 'variant_id' => $variant->id]);
             }
 
             if ($row['value'] !== null) {
@@ -333,7 +340,7 @@ class HoldingImporter extends BaseService
                 $variant->saveQuietly();
 
                 for ($i = 0; $i < $count; $i++) {
-                    Holding::create(['variant_id' => $variant->id]);
+                    Holding::create(['user_id' => $this->ownerId, 'variant_id' => $variant->id]);
                 }
 
                 $report->add(
@@ -439,10 +446,14 @@ class HoldingImporter extends BaseService
     private function buildWishlist(ImportReport $report): void
     {
         $variantIds = array_keys($this->listedNotOwned);
-        $owned = Holding::whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
-        $open = WishlistItem::open()->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
+        $owned = $this->ownersRows(Holding::query())->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
+        $open = $this->ownersRows(WishlistItem::open())->whereIn('variant_id', $variantIds)->pluck('variant_id')->flip();
+
+        // A variant the store evidences stays confirmed; only a confirmation
+        // that rested on the qty 0 row itself is taken back.
         $confirmed = Variant::whereIn('id', $variantIds)
             ->where('existence', VariantExistence::Confirmed)
+            ->doesntHave('evidence')
             ->pluck('id')
             ->flip();
 
@@ -465,6 +476,7 @@ class HoldingImporter extends BaseService
             }
 
             WishlistItem::create([
+                'user_id' => $this->ownerId,
                 'product_id' => $listing['product_id'],
                 'variant_id' => $variantId,
                 'priority' => WishlistPriority::Want,
@@ -473,6 +485,16 @@ class HoldingImporter extends BaseService
 
             $report->count('wishlist items created from qty 0 rows');
         }
+    }
+
+    /**
+     * The spreadsheet is the owner's, so its rows are checked against the
+     * owner's pieces and wishes only. Before an owner account exists they have
+     * no user.
+     */
+    private function ownersRows(Builder $query): Builder
+    {
+        return $this->ownerId === null ? $query->whereNull('user_id') : $query->where('user_id', $this->ownerId);
     }
 
     private function colorKey(int $lineId, string $name, ?int $from): string

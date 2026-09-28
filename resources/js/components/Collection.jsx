@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '../hooks/useApi';
+import { useUser } from '../hooks/useUser';
 import Swatch from './Swatch';
 import VariantDetail from './VariantDetail';
 import RowActions from './RowActions';
@@ -11,10 +12,11 @@ const OWNERSHIP = [
     { key: 'wishlist', label: 'On my wishlist', short: 'Wishlist' },
 ];
 
-function ownershipParams(params, ownership) {
+function ownershipParams(params, ownership, whose) {
     if (ownership === 'owned') params.set('owned', '1');
     if (ownership === 'missing') params.set('owned', '0');
     if (ownership === 'wishlist') params.set('wishlisted', '1');
+    if (whose === 'owner') params.set('collection', 'owner');
 }
 
 const SELECT = 'rounded-lg border-2 border-glaze-shell bg-white px-3 py-2 text-sm font-medium focus:border-glaze-lagoon focus:outline-none';
@@ -39,7 +41,9 @@ export default function Collection() {
     const { data: colors, get: getColors } = useApi();
     const { data: decorations, get: getDecorations } = useApi();
 
+    const user = useUser();
     const [ownership, setOwnership] = useState('owned');
+    const [whose, setWhose] = useState('mine');
     const [lineId, setLineId] = useState('');
     const [era, setEra] = useState('');
     const [year, setYear] = useState('');
@@ -65,7 +69,7 @@ export default function Collection() {
 
     useEffect(() => {
         const params = new URLSearchParams({ per_page: '200' });
-        ownershipParams(params, ownership);
+        ownershipParams(params, ownership, whose);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);
@@ -77,11 +81,11 @@ export default function Collection() {
 
         setSelected(null);
         get(`/api/variants?${params}`);
-    }, [ownership, lineId, era, year, productId, colorId, decoration, get]);
+    }, [ownership, whose, lineId, era, year, productId, colorId, decoration, get]);
 
     const refresh = () => {
         const params = new URLSearchParams({ per_page: '200' });
-        ownershipParams(params, ownership);
+        ownershipParams(params, ownership, whose);
         if (lineId) params.set('line_id', lineId);
         if (era) params.set('era', era);
         if (year) params.set('year', year);
@@ -110,6 +114,25 @@ export default function Collection() {
         <div className="space-y-4">
             <div className="rounded-2xl border-2 border-glaze-shell bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-end gap-4">
+                    {user && !user.is_owner && (
+                        <div className="flex w-full gap-1 rounded-full bg-glaze-sun/30 p-1 md:w-auto">
+                            {[
+                                { key: 'mine', label: 'My collection' },
+                                { key: 'owner', label: `${user.owner_name}'s` },
+                            ].map((w) => (
+                                <button
+                                    key={w.key}
+                                    onClick={() => setWhose(w.key)}
+                                    className={`flex-1 whitespace-nowrap rounded-full px-3 py-2 text-sm font-bold transition md:flex-none md:px-4 ${
+                                        whose === w.key ? 'bg-glaze-ink text-glaze-cream' : 'text-glaze-slate hover:text-glaze-ink'
+                                    }`}
+                                >
+                                    {w.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="flex w-full gap-1 rounded-full bg-glaze-shell p-1 md:w-auto">
                         {OWNERSHIP.map((o) => (
                             <button
@@ -377,6 +400,7 @@ export default function Collection() {
                     variant={acting}
                     onClose={() => setActing(null)}
                     onChanged={refresh}
+                    viewingOwners={whose === 'owner'}
                 />
             )}
 

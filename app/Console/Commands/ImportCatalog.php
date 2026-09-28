@@ -2,6 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\UserRole;
+use App\Models\Holding;
+use App\Models\User;
+use App\Models\WishlistItem;
 use App\Services\Import\CatalogImporter;
 use App\Services\Import\ImportReport;
 use Illuminate\Console\Command;
@@ -16,6 +20,12 @@ class ImportCatalog extends Command
 
     public function handle(CatalogImporter $importer): int
     {
+        if ($this->option('fresh') && $this->testersHaveData()) {
+            $this->error('Beta testers have recorded pieces or wishlist items, and a fresh catalog would delete them. Nothing was changed.');
+
+            return self::FAILURE;
+        }
+
         if ($this->option('fresh')) {
             DB::table('wishlist_items')->delete();
             DB::table('holdings')->delete();
@@ -33,6 +43,14 @@ class ImportCatalog extends Command
         $this->renderReport($report, 'Catalog import', 'catalog-import-report.txt');
 
         return self::SUCCESS;
+    }
+
+    private function testersHaveData(): bool
+    {
+        $testers = User::where('role', UserRole::Tester)->pluck('id');
+
+        return Holding::whereIn('user_id', $testers)->exists()
+            || WishlistItem::whereIn('user_id', $testers)->exists();
     }
 
     private function renderReport(ImportReport $report, string $title, string $file): void

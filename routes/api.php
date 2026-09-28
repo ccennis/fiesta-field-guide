@@ -4,16 +4,25 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ColorController;
 use App\Http\Controllers\HoldingController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\InviteAcceptController;
 use App\Http\Controllers\ListingReviewController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SwatchSuggestionController;
+use App\Http\Controllers\TesterController;
 use App\Http\Controllers\VariantController;
 use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
-Route::middleware('auth')->group(function () {
+// Joining with an invite link happens before there is an account to sign in with.
+Route::middleware('throttle:10,1')->group(function () {
+    Route::get('invites/{token}', [InviteAcceptController::class, 'show']);
+    Route::post('invites/{token}/accept', [InviteAcceptController::class, 'accept']);
+});
+
+Route::middleware(['auth', 'active'])->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
 
@@ -26,13 +35,6 @@ Route::middleware('auth')->group(function () {
     Route::get('variants', [VariantController::class, 'index']);
     Route::get('variants/{variant}', [VariantController::class, 'show']);
 
-    Route::post('products', [ProductController::class, 'store']);
-    Route::patch('products/{product}', [ProductController::class, 'update']);
-    Route::post('products/{product}/merge', [ProductController::class, 'merge']);
-    Route::delete('products/{product}', [ProductController::class, 'destroy']);
-
-    Route::patch('colors/{color}', [ColorController::class, 'update']);
-
     Route::post('holdings', [HoldingController::class, 'store']);
     Route::patch('holdings/{holding}', [HoldingController::class, 'update']);
 
@@ -41,13 +43,31 @@ Route::middleware('auth')->group(function () {
     Route::patch('wishlist/{wishlistItem}', [WishlistController::class, 'update']);
     Route::delete('wishlist/{wishlistItem}', [WishlistController::class, 'destroy']);
 
-    Route::get('sources/{source}/names', [ListingReviewController::class, 'index']);
-    Route::post('sources/{source}/rulings', [ListingReviewController::class, 'rule']);
-    Route::post('sources/{source}/rulings/create', [ListingReviewController::class, 'create']);
-    Route::post('sources/{source}/rulings/create-products', [ListingReviewController::class, 'createProducts']);
-    Route::post('sources/{source}/rulings/undo', [ListingReviewController::class, 'undo']);
+    // The shared catalog, and who may use the app, are the owner's to change.
+    Route::middleware('owner')->group(function () {
+        Route::post('products', [ProductController::class, 'store']);
+        Route::patch('products/{product}', [ProductController::class, 'update']);
+        Route::post('products/{product}/merge', [ProductController::class, 'merge']);
+        Route::delete('products/{product}', [ProductController::class, 'destroy']);
 
-    Route::get('swatch-suggestions', [SwatchSuggestionController::class, 'index']);
-    Route::post('swatch-suggestions/{swatchSuggestion}/accept', [SwatchSuggestionController::class, 'accept']);
-    Route::post('swatch-suggestions/{swatchSuggestion}/dismiss', [SwatchSuggestionController::class, 'dismiss']);
+        Route::patch('colors/{color}', [ColorController::class, 'update']);
+
+        Route::get('sources/{source}/names', [ListingReviewController::class, 'index']);
+        Route::post('sources/{source}/rulings', [ListingReviewController::class, 'rule']);
+        Route::post('sources/{source}/rulings/create', [ListingReviewController::class, 'create']);
+        Route::post('sources/{source}/rulings/create-products', [ListingReviewController::class, 'createProducts']);
+        Route::post('sources/{source}/rulings/undo', [ListingReviewController::class, 'undo']);
+
+        Route::get('swatch-suggestions', [SwatchSuggestionController::class, 'index']);
+        Route::post('swatch-suggestions/{swatchSuggestion}/accept', [SwatchSuggestionController::class, 'accept']);
+        Route::post('swatch-suggestions/{swatchSuggestion}/dismiss', [SwatchSuggestionController::class, 'dismiss']);
+
+        Route::get('invitations', [InvitationController::class, 'index']);
+        Route::post('invitations', [InvitationController::class, 'store']);
+        Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy']);
+
+        Route::get('testers', [TesterController::class, 'index']);
+        Route::post('testers/{user}/disable', [TesterController::class, 'disable']);
+        Route::post('testers/{user}/enable', [TesterController::class, 'enable']);
+    });
 });

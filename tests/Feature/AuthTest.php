@@ -71,7 +71,7 @@ class AuthTest extends TestCase
         $this->artisan('fiesta:make-user', ['email' => 'owner@example.com'])
             ->expectsQuestion('Password', 'a-long-enough-password')
             ->expectsQuestion('Password again', 'a-long-enough-password')
-            ->expectsOutput('Created a login for owner@example.com.')
+            ->expectsOutput('Created the owner login for owner@example.com.')
             ->assertSuccessful();
 
         $this->assertTrue(User::where('email', 'owner@example.com')->exists());

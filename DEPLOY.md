@@ -117,11 +117,17 @@ login:
 ssh fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan db:seed --force"
 ```
 
-The login is created, or its password reset, interactively on the server:
+The owner's login is created, or its password reset, interactively on the server:
 
 ```bash
 ssh -t fiesta@159.203.159.108 "cd /home/fiesta/fiestafieldguide.com/current && php8.4 artisan fiesta:make-user you@example.com"
 ```
+
+Beta testers are invited from the Testers screen in the app, not from the server. Invite
+links are built from `APP_URL`, so it must be the public address.
+
+The migration that added roles made the oldest existing login the owner, and gave it
+every piece and wishlist item already in the database.
 
 ## 5. Nightly backup
 

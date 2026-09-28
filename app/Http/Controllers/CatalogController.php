@@ -10,6 +10,7 @@ use App\Http\Resources\LineResource;
 use App\Http\Resources\ProductResource;
 use App\Services\CatalogService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CatalogController extends Controller
 {
@@ -37,8 +38,8 @@ class CatalogController extends Controller
         return $this->success(DecorationResource::collection($this->catalogService->decorations()));
     }
 
-    public function summary(): JsonResponse
+    public function summary(Request $request): JsonResponse
     {
-        return $this->success($this->catalogService->summary());
+        return $this->success($this->catalogService->summary($request->user()));
     }
 }

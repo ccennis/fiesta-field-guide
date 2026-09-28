@@ -7,9 +7,14 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['variant_id', 'condition', 'condition_notes', 'purchase_price', 'purchase_date', 'notes'])]
+#[Fillable(['user_id', 'variant_id', 'condition', 'condition_notes', 'purchase_price', 'purchase_date', 'notes'])]
 class Holding extends Model
 {
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function variant(): BelongsTo
     {
         return $this->belongsTo(Variant::class);

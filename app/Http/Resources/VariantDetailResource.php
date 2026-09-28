@@ -15,6 +15,11 @@ class VariantDetailResource extends VariantResource
     {
         return parent::toArray($request) + [
             'holdings' => HoldingResource::collection($this->whenLoaded('holdings')),
+            // Only set for testers: how many of this the owner has.
+            'owner' => $this->owner_count === null ? null : [
+                'name' => $this->owner_name,
+                'count' => (int) $this->owner_count,
+            ],
             'value_history' => ValueObservationResource::collection($this->whenLoaded('valueHistory')),
             'evidence' => ExternalListingResource::collection(
                 $this->whenLoaded('evidence', fn () => $this->evidence->pluck('listing')->sortByDesc('last_seen_at')->values())
